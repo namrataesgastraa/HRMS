@@ -22,6 +22,7 @@ import {
   linksToStoredFiles,
 } from "@/lib/storage";
 import { STORAGE_BUCKETS } from "@/lib/constants";
+import { notifyEvent } from "@/lib/notify";
 import { Trash2, UsersRound } from "lucide-react";
 import {
   ProofFilesInput,
@@ -625,6 +626,11 @@ function AssignTaskModal({
         attachments: attachments.length ? attachments : null,
       });
       if (error) throw error;
+      notifyEvent({
+        kind: "assigned",
+        subjectProfileId: employeeId,
+        message: `"${title.trim()}"${message.trim() ? ` — ${message.trim()}` : ""}${deadline ? ` (due ${new Date(deadline).toLocaleString()})` : ""}`,
+      });
       await queryClient.invalidateQueries({
         queryKey: ["admin", "employee", employeeId],
       });

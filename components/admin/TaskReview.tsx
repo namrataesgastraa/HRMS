@@ -7,6 +7,7 @@ import { format } from "date-fns";
 import { MessageSquarePlus, Paperclip, Download } from "lucide-react";
 import { createClient } from "@/lib/supabaseClient";
 import { openStoredFile } from "@/lib/storage";
+import { notifyEvent } from "@/lib/notify";
 import { STORAGE_BUCKETS } from "@/lib/constants";
 import type { StoredFile } from "@/lib/types";
 import { Avatar } from "@/components/ui/Avatar";
@@ -29,6 +30,7 @@ interface Comment {
 }
 interface LogRow {
   id: string;
+  profile_id: string;
   task_title: string;
   description: string | null;
   day_number: number;
@@ -95,7 +97,7 @@ function DailyLogs({
       const { data, error } = await supabase
         .from("daily_task_logs")
         .select(
-          "id, task_title, description, day_number, proof_files, submitted_at, plan:thirty_day_plans(plan_number), profile:profiles(full_name, employee_id, avatar_url), comments:admin_comments(id, comment, created_at)",
+          "id, profile_id, task_title, description, day_number, proof_files, submitted_at, plan:thirty_day_plans(plan_number), profile:profiles(full_name, employee_id, avatar_url), comments:admin_comments(id, comment, created_at)",
         )
         .order("submitted_at", { ascending: false })
         .limit(80);
@@ -168,6 +170,11 @@ function LogCard({
       toast({ title: "Comment failed", description: error.message, variant: "error" });
       return;
     }
+    notifyEvent({
+      kind: "comment",
+      subjectProfileId: log.profile_id,
+      message: `On "${log.task_title}" (Day ${log.day_number}): ${text}`,
+    });
     setComment("");
     await queryClient.invalidateQueries({ queryKey: ["admin", "task_logs"] });
     toast({ title: "Comment added", variant: "success" });

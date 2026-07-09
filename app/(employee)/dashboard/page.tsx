@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { MapPin, ListTodo, MessagesSquare } from "lucide-react";
+import { MapPin, ListTodo, MessagesSquare, UsersRound, ChevronRight } from "lucide-react";
 import { useCurrentUser } from "@/components/providers/CurrentUserProvider";
 import { TodayStatusCard } from "@/components/dashboard/TodayStatusCard";
 import { Card } from "@/components/ui";
@@ -13,8 +13,9 @@ const QUICK_LINKS = [
 ];
 
 export default function DashboardPage() {
-  const { id, fullName } = useCurrentUser();
+  const { id, fullName, role, department } = useCurrentUser();
   const firstName = fullName?.split(" ")[0];
+  const isManager = role === "manager";
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -24,6 +25,24 @@ export default function DashboardPage() {
         </h1>
         <p className="text-sm text-gray-500">Here&apos;s your day at a glance.</p>
       </div>
+
+      {isManager && (
+        <Link href="/team">
+          <Card className="flex items-center gap-4 border-electric-violet/30 bg-electric-violet/5 p-5 transition-shadow hover:shadow-soft">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-primary text-white">
+              <UsersRound className="h-5 w-5" />
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-dark-base">My Team</p>
+              <p className="text-sm text-gray-500">
+                {department ? `${department} department` : "Your team"} —
+                attendance, tasks &amp; plans
+              </p>
+            </div>
+            <ChevronRight className="h-5 w-5 text-electric-violet" />
+          </Card>
+        </Link>
+      )}
 
       <TodayStatusCard uid={id} />
 

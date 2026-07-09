@@ -20,6 +20,7 @@ import {
   type GeoPosition,
 } from "@/lib/geolocation";
 import { LATE_THRESHOLD_HOUR, CHECK_IN_WINDOW } from "@/lib/constants";
+import { notifyEvent } from "@/lib/notify";
 import type { OfficeLocation, AttendanceRecord } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -147,6 +148,10 @@ export function AttendanceClient({ uid }: Props) {
       });
       if (error) throw error;
       await queryClient.invalidateQueries({ queryKey: ["attendance"] });
+      notifyEvent({
+        kind: "attendance",
+        message: `Checked in at ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}${isLate ? " (late)" : ""} · ${Math.round(nearest.distanceMeters)} m from office.`,
+      });
       toast({
         title: isLate ? "Checked in (late)" : "You're checked in!",
         description: `Marked present · ${Math.round(nearest.distanceMeters)} m from office.`,
@@ -197,6 +202,7 @@ export function AttendanceClient({ uid }: Props) {
       });
       if (error) throw error;
       await queryClient.invalidateQueries({ queryKey: ["attendance"] });
+      notifyEvent({ kind: "attendance", message: "Marked as Working From Home today." });
       toast({
         title: "Marked as working from home",
         description: "Have a productive day!",

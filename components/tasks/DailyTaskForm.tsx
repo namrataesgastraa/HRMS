@@ -13,6 +13,7 @@ import {
   openStoredFile,
 } from "@/lib/storage";
 import { STORAGE_BUCKETS } from "@/lib/constants";
+import { notifyEvent } from "@/lib/notify";
 import type { ThirtyDayPlan, TaskEntry, AttendanceRecord } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -126,6 +127,10 @@ export function DailyTaskForm({ uid }: { uid: string }) {
       if (error) throw error;
 
       await queryClient.invalidateQueries({ queryKey: ["daily_task_logs"] });
+      notifyEvent({
+        kind: "task",
+        message: `Logged Day ${day}: "${title.trim()}"${description.trim() ? ` — ${description.trim()}` : ""}`,
+      });
       confetti({
         particleCount: 90,
         spread: 65,

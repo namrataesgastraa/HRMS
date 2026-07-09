@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabaseClient";
 import { uploadUserFiles, openStoredFile } from "@/lib/storage";
+import { notifyEvent } from "@/lib/notify";
 import { STORAGE_BUCKETS } from "@/lib/constants";
 import type { TaskPlan, ThirtyDayPlan, StoredFile } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
@@ -187,6 +188,7 @@ function PlanUpload({
     try {
       await onUpload(file);
       await queryClient.invalidateQueries({ queryKey: invalidateKey });
+      notifyEvent({ kind: "plan", message: `${title} uploaded (${file.name}).` });
       toast({ title: `${title} uploaded!`, variant: "success" });
       setFile(null);
     } catch (err) {
