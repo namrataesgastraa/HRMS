@@ -6,6 +6,7 @@
  */
 
 import { useState } from "react";
+import { notFound } from "next/navigation";
 import {
   Mail,
   Trash2,
@@ -63,6 +64,9 @@ function Section({
 }
 
 export default function DesignSystemPage() {
+  // Dev-only component gallery — never reachable in production.
+  if (process.env.NODE_ENV === "production") notFound();
+
   const { toast } = useToast();
   const [modalOpen, setModalOpen] = useState(false);
   const [celebrateOpen, setCelebrateOpen] = useState(false);

@@ -10,7 +10,6 @@ const PUBLIC_PATHS = [
   "/login",
   "/signup",
   "/auth",
-  "/design-system",
   "/icon",
   "/apple-icon",
   "/manifest.webmanifest",
