@@ -9,6 +9,9 @@ STAMP="$(date +%Y-%m-%d_%H%M)"
 OUT="${BACKUP_DIR:-backup}/$STAMP"
 mkdir -p "$OUT"
 
+# Strip any stray CR/LF a pasted secret may carry (trailing newline etc.).
+SUPABASE_DB_URL="$(printf '%s' "${SUPABASE_DB_URL:-}" | tr -d '\r\n')"
+
 echo "== 1/3 Dumping database =="
 pg_dump "$SUPABASE_DB_URL" --no-owner --no-privileges \
   | gzip > "$OUT/database.sql.gz"
