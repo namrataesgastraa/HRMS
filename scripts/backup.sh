@@ -12,8 +12,15 @@ mkdir -p "$OUT"
 # Strip any stray CR/LF a pasted secret may carry (trailing newline etc.).
 SUPABASE_DB_URL="$(printf '%s' "${SUPABASE_DB_URL:-}" | tr -d '\r\n')"
 
-echo "== 1/3 Dumping database =="
-pg_dump "$SUPABASE_DB_URL" --no-owner --no-privileges \
+# Use the newest pg_dump explicitly (server is PG17; the PATH shim may be older).
+PG_DUMP="pg_dump"
+for v in 17 16; do
+  if [ -x "/usr/lib/postgresql/$v/bin/pg_dump" ]; then
+    PG_DUMP="/usr/lib/postgresql/$v/bin/pg_dump"; break
+  fi
+done
+echo "== 1/3 Dumping database ($("$PG_DUMP" --version)) =="
+"$PG_DUMP" "$SUPABASE_DB_URL" --no-owner --no-privileges \
   | gzip > "$OUT/database.sql.gz"
 echo "   dump: $(du -h "$OUT/database.sql.gz" | cut -f1)"
 
