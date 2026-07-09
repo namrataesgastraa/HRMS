@@ -20,7 +20,7 @@ jobs:
           sudo apt-get install -y postgresql-client-16
           curl https://rclone.org/install.sh | sudo bash
 
-      - name: Write rclone config (Google Drive)
+      - name: Write rclone config (Google Drive — optional)
         env:
           RCLONE_CONF: ${{ secrets.RCLONE_CONF }}
         run: |
@@ -37,3 +37,10 @@ jobs:
           GDRIVE_DEST: ${{ secrets.GDRIVE_DEST }}
           RETAIN_DAYS: "30"
         run: bash scripts/backup.sh
+
+      - name: Upload backup as GitHub artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hrms-backup
+          path: backup/
+          retention-days: 30
