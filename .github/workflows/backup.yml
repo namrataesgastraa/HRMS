@@ -21,11 +21,11 @@ jobs:
           curl https://rclone.org/install.sh | sudo bash
 
       - name: Write rclone config (Google Drive)
+        env:
+          RCLONE_CONF: ${{ secrets.RCLONE_CONF }}
         run: |
           mkdir -p ~/.config/rclone
-          cat > ~/.config/rclone/rclone.conf <<'EOF'
-          ${{ secrets.RCLONE_CONF }}
-          EOF
+          printf '%s' "$RCLONE_CONF" > ~/.config/rclone/rclone.conf
 
       - name: Run backup
         env:
