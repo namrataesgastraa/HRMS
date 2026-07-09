@@ -1,0 +1,39 @@
+name: Nightly Backup
+
+# Runs every night and can also be triggered manually (Actions tab → Run workflow).
+on:
+  schedule:
+    - cron: "30 20 * * *" # 20:30 UTC = 02:00 IST
+  workflow_dispatch: {}
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pg_dump 16 + rclone
+        run: |
+          sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/pgdg.gpg
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client-16
+          curl https://rclone.org/install.sh | sudo bash
+
+      - name: Write rclone config (Google Drive)
+        run: |
+          mkdir -p ~/.config/rclone
+          cat > ~/.config/rclone/rclone.conf <<'EOF'
+          ${{ secrets.RCLONE_CONF }}
+          EOF
+
+      - name: Run backup
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          SUPABASE_S3_ENDPOINT: ${{ secrets.SUPABASE_S3_ENDPOINT }}
+          SUPABASE_S3_REGION: ${{ secrets.SUPABASE_S3_REGION }}
+          SUPABASE_S3_KEY: ${{ secrets.SUPABASE_S3_KEY }}
+          SUPABASE_S3_SECRET: ${{ secrets.SUPABASE_S3_SECRET }}
+          GDRIVE_DEST: ${{ secrets.GDRIVE_DEST }}
+          RETAIN_DAYS: "30"
+        run: bash scripts/backup.sh

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ESG Astraa HRMS</string>
+    <string name="title_activity_main">ESG Astraa HRMS</string>
+    <string name="package_name">com.esgastraa.hrms</string>
+    <string name="custom_url_scheme">com.esgastraa.hrms</string>
+</resources>

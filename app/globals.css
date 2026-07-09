@@ -1,0 +1,53 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ESG Astraa brand tokens — mirrored as CSS custom properties (CLAUDE.md Section 3) */
+:root {
+  --color-dark-base: #232234;
+  --color-electric-violet: #7516ea;
+  --color-cool-blue: #2e94f3;
+  --color-white: #ffffff;
+  --color-success: #22c55e;
+  --gradient-primary: linear-gradient(135deg, #7516ea 0%, #2e94f3 100%);
+}
+
+@layer base {
+  html {
+    height: 100%;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply min-h-full bg-gray-50 text-dark-base font-sans antialiased;
+  }
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
+}
+
+@layer utilities {
+  /* Reusable violet→blue gradient utility (fill) — CLAUDE.md Section 3 */
+  .bg-gradient-primary {
+    background-image: var(--gradient-primary);
+  }
+  /* Same gradient clipped to text */
+  .text-gradient-primary {
+    background-image: var(--gradient-primary);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  /* Thin custom scrollbar for chat / long lists */
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+  /* iOS/Android safe-area insets (notch / status bar / home indicator) so the
+     installed PWA doesn't render content under the system UI. */
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
