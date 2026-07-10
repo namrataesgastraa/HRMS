@@ -6,6 +6,7 @@ import {
   Users,
   CalendarCheck,
   UsersRound,
+  Gauge,
   type LucideIcon,
 } from "lucide-react";
 import type { UserRole } from "./constants";
@@ -28,6 +29,7 @@ const managerNav: NavItem[] = [
   { label: "My Team", href: "/team", icon: UsersRound },
   { label: "Attendance", href: "/attendance", icon: MapPin },
   { label: "Tasks", href: "/tasks", icon: ListTodo },
+  { label: "Evaluation", href: "/evaluation", icon: Gauge },
   { label: "Chat", href: "/chat", icon: MessagesSquare },
 ];
 
@@ -36,6 +38,7 @@ const adminNav: NavItem[] = [
   { label: "Employees", href: "/admin/employees", icon: Users },
   { label: "Attendance", href: "/admin/attendance", icon: CalendarCheck },
   { label: "Tasks", href: "/admin/tasks", icon: ListTodo },
+  { label: "Evaluation", href: "/admin/evaluation", icon: Gauge },
   { label: "Chat", href: "/admin/chat", icon: MessagesSquare },
 ];
 

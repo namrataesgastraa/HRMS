@@ -41,6 +41,18 @@ export interface TaskEntry {
   created_at: string;
 }
 
+export interface Evaluation {
+  id: string;
+  evaluator_id: string;
+  subject_id: string;
+  eval_date: string; // yyyy-mm-dd
+  score: number; // 0–100
+  checked_task_ids: string[] | null;
+  note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface AssignedTask {
   id: string;
   admin_id: string;
