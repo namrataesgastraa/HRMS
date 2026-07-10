@@ -19,7 +19,11 @@ import {
   nearestOffice,
   type GeoPosition,
 } from "@/lib/geolocation";
-import { LATE_THRESHOLD_HOUR, CHECK_IN_WINDOW } from "@/lib/constants";
+import {
+  LATE_THRESHOLD_HOUR,
+  CHECK_IN_WINDOW,
+  CHECKOUT_WINDOW,
+} from "@/lib/constants";
 import { notifyEvent } from "@/lib/notify";
 import type { OfficeLocation, AttendanceRecord } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
@@ -31,6 +35,13 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   uid: string;
+}
+
+/** 24h hour → "7:00 PM" style label. */
+function fmtHour(h: number): string {
+  const period = h >= 12 ? "PM" : "AM";
+  const hour12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hour12}:00 ${period}`;
 }
 
 export function AttendanceClient({ uid }: Props) {
@@ -178,7 +189,14 @@ export function AttendanceClient({ uid }: Props) {
         .eq("id", today.id);
       if (error) throw error;
       await queryClient.invalidateQueries({ queryKey: ["attendance"] });
-      toast({ title: "Checked out. See you tomorrow!", variant: "success" });
+      const early = new Date().getHours() < CHECKOUT_WINDOW.startHour;
+      toast({
+        title: early ? "Checked out early" : "Checked out. See you tomorrow!",
+        description: early
+          ? `Standard check-out is ${fmtHour(CHECKOUT_WINDOW.startHour)}–${fmtHour(CHECKOUT_WINDOW.endHour)}.`
+          : undefined,
+        variant: "success",
+      });
     } catch (err) {
       toast({
         title: "Check-out failed",
@@ -355,27 +373,40 @@ export function AttendanceClient({ uid }: Props) {
             {/* Action */}
             <div className="pt-1">
               {!alreadyCheckedIn ? (
-                <Button
-                  fullWidth
-                  size="lg"
-                  disabled={!canCheckIn}
-                  loading={submitting}
-                  onClick={handleCheckIn}
-                  leftIcon={<LogIn className="h-4 w-4" />}
-                >
-                  {nearest.within ? "Mark present" : "Move closer to check in"}
-                </Button>
+                <>
+                  <Button
+                    fullWidth
+                    size="lg"
+                    disabled={!canCheckIn}
+                    loading={submitting}
+                    onClick={handleCheckIn}
+                    leftIcon={<LogIn className="h-4 w-4" />}
+                  >
+                    {nearest.within ? "Mark present" : "Move closer to check in"}
+                  </Button>
+                  <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-xs text-gray-400">
+                    <Clock className="h-3.5 w-3.5" />
+                    Check in before {fmtHour(LATE_THRESHOLD_HOUR)} to be marked present.
+                  </p>
+                </>
               ) : !alreadyCheckedOut ? (
-                <Button
-                  fullWidth
-                  size="lg"
-                  variant="secondary"
-                  loading={submitting}
-                  onClick={handleCheckOut}
-                  leftIcon={<LogOut className="h-4 w-4" />}
-                >
-                  Check out
-                </Button>
+                <>
+                  <Button
+                    fullWidth
+                    size="lg"
+                    variant="secondary"
+                    loading={submitting}
+                    onClick={handleCheckOut}
+                    leftIcon={<LogOut className="h-4 w-4" />}
+                  >
+                    Check out
+                  </Button>
+                  <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-xs text-gray-400">
+                    <Clock className="h-3.5 w-3.5" />
+                    Standard check-out: {fmtHour(CHECKOUT_WINDOW.startHour)}–
+                    {fmtHour(CHECKOUT_WINDOW.endHour)}
+                  </p>
+                </>
               ) : (
                 <p className="text-center text-sm font-medium text-success">
                   Attendance complete for today ✓

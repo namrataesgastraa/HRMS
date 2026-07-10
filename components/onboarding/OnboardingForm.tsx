@@ -31,6 +31,8 @@ import {
   type OnboardingValues,
   STEP_FIELDS,
   DEPARTMENT_OPTIONS,
+  OTHER_DEPARTMENT,
+  resolveDepartment,
   ageFromDob,
 } from "@/lib/validation/onboarding";
 
@@ -101,6 +103,7 @@ export function OnboardingForm({
       emergency_contact: "",
       designation: "",
       department: "",
+      department_other: "",
       joining_date: "",
       reporting_manager: "",
       education: [{ degree: "", institution: "", year: "" }],
@@ -208,7 +211,7 @@ export function OnboardingForm({
             address: values.address || null,
             emergency_contact: values.emergency_contact || null,
             designation: values.designation || null,
-            department: values.department || null,
+            department: resolveDepartment(values.department, values.department_other),
             joining_date: values.joining_date || null,
             reporting_manager: values.reporting_manager || null,
             education: (values.education ?? []).filter((e) => e.degree),
@@ -224,7 +227,7 @@ export function OnboardingForm({
         .update({
           full_name: values.full_name,
           profile_completed: true,
-          department: values.department || null,
+          department: resolveDepartment(values.department, values.department_other),
           ...(avatarUrl ? { avatar_url: avatarUrl } : {}),
         })
         .eq("id", uid);
@@ -335,6 +338,13 @@ export function OnboardingForm({
               options={DEPARTMENT_OPTIONS}
               {...register("department")}
             />
+            {watch("department") === OTHER_DEPARTMENT && (
+              <Input
+                label="Specify department"
+                placeholder="Your department"
+                {...register("department_other")}
+              />
+            )}
             <DatePicker label="Joining date" {...register("joining_date")} />
             <Input
               label="Reporting manager"
@@ -622,7 +632,10 @@ function ReviewStep({
         <h3 className="mb-1 text-sm font-bold text-dark-base">Employment</h3>
         <div className="divide-y divide-gray-50">
           <Row label="Designation" value={values.designation} />
-          <Row label="Department" value={values.department} />
+          <Row
+            label="Department"
+            value={resolveDepartment(values.department, values.department_other)}
+          />
           <Row label="Joining date" value={values.joining_date} />
           <Row label="Reporting manager" value={values.reporting_manager} />
         </div>

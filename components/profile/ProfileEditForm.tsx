@@ -6,7 +6,11 @@ import { Camera } from "lucide-react";
 import { createClient } from "@/lib/supabaseClient";
 import { uploadAvatar } from "@/lib/storage";
 import { logProfileEdit, diffRecords } from "@/lib/audit";
-import { DEPARTMENT_OPTIONS } from "@/lib/validation/onboarding";
+import {
+  DEPARTMENT_OPTIONS,
+  DEPARTMENTS,
+  OTHER_DEPARTMENT,
+} from "@/lib/validation/onboarding";
 import { Avatar } from "@/components/ui/Avatar";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -40,6 +44,21 @@ export function ProfileEditForm({
   const [form, setForm] = useState<Initial>(initial);
   const [photo, setPhoto] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+
+  // Map an existing (possibly custom) department onto the fixed options.
+  const knownDepts = DEPARTMENTS as readonly string[];
+  const [deptChoice, setDeptChoice] = useState(
+    !initial.department
+      ? ""
+      : knownDepts.includes(initial.department)
+        ? initial.department
+        : OTHER_DEPARTMENT,
+  );
+  const [deptOther, setDeptOther] = useState(
+    initial.department && !knownDepts.includes(initial.department)
+      ? initial.department
+      : "",
+  );
 
   const preview = useMemo(
     () => (photo ? URL.createObjectURL(photo) : initial.avatar_url),
@@ -176,11 +195,26 @@ export function ProfileEditForm({
         />
         <Select
           label="Department"
-          value={form.department}
-          onChange={(e) => set("department", e.target.value)}
+          value={deptChoice}
+          onChange={(e) => {
+            const v = e.target.value;
+            setDeptChoice(v);
+            set("department", v === OTHER_DEPARTMENT ? deptOther : v);
+          }}
           placeholder="Select a department"
           options={DEPARTMENT_OPTIONS}
         />
+        {deptChoice === OTHER_DEPARTMENT && (
+          <Input
+            label="Specify department"
+            value={deptOther}
+            onChange={(e) => {
+              setDeptOther(e.target.value);
+              set("department", e.target.value);
+            }}
+            placeholder="Your department"
+          />
+        )}
         <Input
           label="Reporting manager"
           value={form.reporting_manager}

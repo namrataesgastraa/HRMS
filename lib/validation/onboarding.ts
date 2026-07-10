@@ -25,6 +25,7 @@ export const onboardingSchema = z.object({
   // Employment
   designation: z.string().optional(),
   department: z.string().optional(),
+  department_other: z.string().optional(),
   joining_date: z.string().optional(),
   reporting_manager: z.string().optional(),
   // Education (repeatable)
@@ -42,15 +43,30 @@ export const STEP_FIELDS: (keyof OnboardingValues)[][] = [
   [], // Review
 ];
 
+export const DEPARTMENTS = [
+  "Operations & Client Deliverables",
+  "Research & Content",
+  "Digital Marketing",
+] as const;
+
+export const OTHER_DEPARTMENT = "Other";
+
 export const DEPARTMENT_OPTIONS = [
-  { label: "Consulting", value: "Consulting" },
-  { label: "Research", value: "Research" },
-  { label: "Operations", value: "Operations" },
-  { label: "Sales & BD", value: "Sales & BD" },
-  { label: "Human Resources", value: "Human Resources" },
-  { label: "Finance", value: "Finance" },
-  { label: "Other", value: "Other" },
+  ...DEPARTMENTS.map((d) => ({ label: d, value: d })),
+  { label: "Other (please specify)", value: OTHER_DEPARTMENT },
 ];
+
+/**
+ * Final department string to store: when "Other" is chosen, use the specified
+ * text; otherwise the selected option. Empty → null.
+ */
+export function resolveDepartment(
+  department?: string,
+  other?: string,
+): string | null {
+  if (department === OTHER_DEPARTMENT) return other?.trim() || null;
+  return department?.trim() || null;
+}
 
 /** Whole-years age from an ISO date string (yyyy-mm-dd). */
 export function ageFromDob(dob: string): number | null {
