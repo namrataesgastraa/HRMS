@@ -1,10 +1,14 @@
 import { ImageResponse } from "next/og";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
 
-// iOS home-screen icon (Apple masks corners itself, so fill the square).
+// iOS home-screen icon — the ESG Astraa logo on white (Apple rounds corners).
 export default function AppleIcon() {
+  const logo = readFileSync(join(process.cwd(), "public/logo.png"));
+  const src = `data:image/png;base64,${logo.toString("base64")}`;
   return new ImageResponse(
     (
       <div
@@ -14,15 +18,12 @@ export default function AppleIcon() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: "linear-gradient(135deg, #7516EA 0%, #2E94F3 100%)",
-          color: "white",
-          fontSize: 92,
-          fontWeight: 800,
-          fontFamily: "sans-serif",
-          letterSpacing: -4,
+          background: "#ffffff",
+          padding: 16,
         }}
       >
-        EA
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} width={148} style={{ objectFit: "contain" }} alt="ESG Astraa" />
       </div>
     ),
     { ...size },
