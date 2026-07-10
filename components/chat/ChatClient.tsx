@@ -12,6 +12,8 @@ import {
   FileText,
   ArrowLeft,
   Search,
+  Download,
+  Image as ImageIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabaseClient";
 import { uploadChatFiles } from "@/lib/storage";
@@ -76,6 +78,28 @@ export function ChatClient({ uid, userName, canChat, userAvatar, department }: P
   const [files, setFiles] = useState<File[]>([]);
   const [sending, setSending] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
+  // Per-peer "last read" timestamps (ms) → drives DM unread badges.
+  const readKey = `chat-lastread-${uid}`;
+  const [lastRead, setLastRead] = useState<Record<string, number>>(() => {
+    try {
+      const raw = typeof window !== "undefined" ? localStorage.getItem(readKey) : null;
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  function markRead(peerId: string) {
+    setLastRead((prev) => {
+      const next = { ...prev, [peerId]: Date.now() };
+      try {
+        localStorage.setItem(readKey, JSON.stringify(next));
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }
 
   const nameCache = useRef<Map<string, string>>(new Map());
   const avatarCache = useRef<Map<string, string | null>>(new Map());
@@ -90,27 +114,25 @@ export function ChatClient({ uid, userName, canChat, userAvatar, department }: P
         .select(
           "id, content, created_at, sender_id, recipient_id, department, attachments, sender:profiles(full_name, avatar_url)",
         )
-        .order("created_at", { ascending: false })
-        .limit(300);
+        .order("created_at", { ascending: true })
+        .limit(2000);
       if (!active) return;
       const rows = ((data ?? []) as unknown as Array<
         Omit<ChatMessage, "senderName" | "senderAvatar"> & { sender: SenderJoin }
-      >)
-        .map((r) => {
-          const s = pickSender(r.sender);
-          return {
-            id: r.id,
-            content: r.content,
-            created_at: r.created_at,
-            sender_id: r.sender_id,
-            recipient_id: r.recipient_id ?? null,
-            department: r.department ?? null,
-            attachments: r.attachments ?? null,
-            senderName: s?.full_name ?? "Unknown",
-            senderAvatar: s?.avatar_url ?? null,
-          };
-        })
-        .reverse();
+      >).map((r) => {
+        const s = pickSender(r.sender);
+        return {
+          id: r.id,
+          content: r.content,
+          created_at: r.created_at,
+          sender_id: r.sender_id,
+          recipient_id: r.recipient_id ?? null,
+          department: r.department ?? null,
+          attachments: r.attachments ?? null,
+          senderName: s?.full_name ?? "Unknown",
+          senderAvatar: s?.avatar_url ?? null,
+        };
+      });
       rows.forEach((r) => {
         nameCache.current.set(r.sender_id, r.senderName);
         avatarCache.current.set(r.sender_id, r.senderAvatar);
@@ -215,9 +237,32 @@ export function ChatClient({ uid, userName, canChat, userAvatar, department }: P
     );
   });
 
+  // Unread DM count per sender (messages addressed to me, newer than last read).
+  // The conversation currently open is always treated as read.
+  const openPeerId = view === "direct" && peer ? peer.id : null;
+  const unreadByPeer = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const m of messages) {
+      if (m.recipient_id === uid && m.sender_id !== uid && m.sender_id !== openPeerId) {
+        if (new Date(m.created_at).getTime() > (lastRead[m.sender_id] ?? 0)) {
+          map[m.sender_id] = (map[m.sender_id] ?? 0) + 1;
+        }
+      }
+    }
+    return map;
+  }, [messages, uid, lastRead, openPeerId]);
+  const totalUnread = Object.values(unreadByPeer).reduce((a, b) => a + b, 0);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, view, peer]);
+
+  // Leave the open conversation, persisting a "read up to now" marker so
+  // messages received while it was open don't resurface as unread.
+  function leavePeer() {
+    if (peer) markRead(peer.id);
+    setPeer(null);
+  }
 
   async function send() {
     const text = draft.trim();
@@ -280,9 +325,21 @@ export function ChatClient({ uid, userName, canChat, userAvatar, department }: P
     }
   }
 
-  const filteredContacts = contacts.filter((c) =>
-    (c.full_name ?? "").toLowerCase().includes(contactSearch.toLowerCase()),
-  );
+  const filteredContacts = contacts
+    .filter((c) =>
+      (c.full_name ?? "").toLowerCase().includes(contactSearch.toLowerCase()),
+    )
+    .sort((a, b) => {
+      const ua = unreadByPeer[a.id] ?? 0;
+      const ub = unreadByPeer[b.id] ?? 0;
+      if (ua !== ub) return ub - ua; // unread conversations first
+      return (a.full_name ?? "").localeCompare(b.full_name ?? "");
+    });
+
+  function openPeer(c: Contact) {
+    setPeer(c);
+    markRead(c.id);
+  }
 
   const showContactPicker = view === "direct" && !peer;
   const tabBtn = (active: boolean) =>
@@ -298,7 +355,7 @@ export function ChatClient({ uid, userName, canChat, userAvatar, department }: P
         {view === "direct" && peer ? (
           <>
             <button
-              onClick={() => setPeer(null)}
+              onClick={leavePeer}
               className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100"
               aria-label="Back to contacts"
             >
@@ -322,9 +379,14 @@ export function ChatClient({ uid, userName, canChat, userAvatar, department }: P
                 setView("direct");
                 setPeer(null);
               }}
-              className={tabBtn(view === "direct")}
+              className={cn(tabBtn(view === "direct"), "relative inline-flex items-center gap-1.5")}
             >
               Direct
+              {totalUnread > 0 && (
+                <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">
+                  {totalUnread}
+                </span>
+              )}
             </button>
           </div>
         )}
@@ -348,19 +410,32 @@ export function ChatClient({ uid, userName, canChat, userAvatar, department }: P
             <p className="p-6 text-center text-sm text-gray-400">No people found.</p>
           ) : (
             <ul className="divide-y divide-gray-50">
-              {filteredContacts.map((c) => (
-                <li key={c.id}>
-                  <button
-                    onClick={() => setPeer(c)}
-                    className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-50"
-                  >
-                    <Avatar name={c.full_name} src={c.avatar_url} size="sm" />
-                    <span className="text-sm font-medium text-dark-base">
-                      {c.full_name ?? "—"}
-                    </span>
-                  </button>
-                </li>
-              ))}
+              {filteredContacts.map((c) => {
+                const unread = unreadByPeer[c.id] ?? 0;
+                return (
+                  <li key={c.id}>
+                    <button
+                      onClick={() => openPeer(c)}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-gray-50"
+                    >
+                      <Avatar name={c.full_name} src={c.avatar_url} size="sm" />
+                      <span
+                        className={cn(
+                          "flex-1 text-sm text-dark-base",
+                          unread > 0 ? "font-bold" : "font-medium",
+                        )}
+                      >
+                        {c.full_name ?? "—"}
+                      </span>
+                      {unread > 0 && (
+                        <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">
+                          {unread}
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
@@ -416,33 +491,35 @@ export function ChatClient({ uid, userName, canChat, userAvatar, department }: P
                             <p className="whitespace-pre-wrap break-words">{m.content}</p>
                           )}
                           {m.attachments && m.attachments.length > 0 && (
-                            <div className="mt-1 flex flex-col gap-1.5">
-                              {m.attachments.map((f, k) =>
-                                f.type?.startsWith("image/") ? (
-                                  <a key={k} href={f.url} target="_blank" rel="noopener noreferrer">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img
-                                      src={f.url}
-                                      alt={f.filename}
-                                      className="max-h-48 max-w-full rounded-lg"
-                                    />
-                                  </a>
-                                ) : (
-                                  <a
-                                    key={k}
-                                    href={f.url}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
+                            <div className={cn("flex flex-col gap-1.5", m.content ? "mt-2" : "")}>
+                              {m.attachments.map((f, k) => (
+                                <a
+                                  key={k}
+                                  href={f.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title={`Open ${f.filename}`}
+                                  className={cn(
+                                    "inline-flex items-center gap-2 rounded-lg px-2.5 py-2 text-xs font-medium transition-colors",
+                                    mine
+                                      ? "bg-white/20 text-white hover:bg-white/30"
+                                      : "bg-white text-dark-base ring-1 ring-gray-200 hover:bg-gray-50",
+                                  )}
+                                >
+                                  {f.type?.startsWith("image/") ? (
+                                    <ImageIcon className="h-4 w-4 shrink-0" />
+                                  ) : (
+                                    <FileText className="h-4 w-4 shrink-0" />
+                                  )}
+                                  <span className="max-w-[180px] truncate">{f.filename}</span>
+                                  <Download
                                     className={cn(
-                                      "inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium",
-                                      mine ? "bg-white/20 text-white" : "bg-white text-cool-blue",
+                                      "h-3.5 w-3.5 shrink-0",
+                                      mine ? "text-white/80" : "text-cool-blue",
                                     )}
-                                  >
-                                    <FileText className="h-3.5 w-3.5" />
-                                    <span className="max-w-[160px] truncate">{f.filename}</span>
-                                  </a>
-                                ),
-                              )}
+                                  />
+                                </a>
+                              ))}
                             </div>
                           )}
                         </div>
