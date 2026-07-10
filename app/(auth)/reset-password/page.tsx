@@ -22,7 +22,48 @@ export default function ResetPasswordPage() {
   const [done, setDone] = useState(false);
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => setReady(!!data.session));
+    let settled = false;
+    const finish = (ok: boolean) => {
+      if (!settled) {
+        settled = true;
+        setReady(ok);
+      }
+    };
+
+    // The client processes the recovery link (?code=… or #token) on load and
+    // fires an auth event once the recovery session is established.
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session) finish(true);
+    });
+
+    // If a link carried an explicit error, surface "expired" immediately.
+    const params = new URLSearchParams(
+      window.location.hash.replace(/^#/, "") + "&" + window.location.search.replace(/^\?/, ""),
+    );
+    if (params.get("error") || params.get("error_code")) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setError(
+        params.get("error_description")?.replace(/\+/g, " ") ??
+          "This reset link is invalid or has expired.",
+      );
+      finish(false);
+    }
+
+    // Session may already be present (client processed URL before listener).
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) finish(true);
+    });
+
+    // Otherwise give the client time to exchange the token, then decide.
+    const t = setTimeout(async () => {
+      const { data } = await supabase.auth.getSession();
+      finish(!!data.session);
+    }, 3000);
+
+    return () => {
+      clearTimeout(t);
+      sub.subscription.unsubscribe();
+    };
   }, [supabase]);
 
   async function onSubmit(e: React.FormEvent) {
