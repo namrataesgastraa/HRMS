@@ -9,6 +9,7 @@ import { CHECKOUT_WINDOW } from "@/lib/constants";
 import type { AttendanceRecord } from "@/lib/types";
 import { Select } from "@/components/ui/Select";
 import { SkeletonCard } from "@/components/ui/LoadingSkeleton";
+import { BarChart } from "@/components/ui/MiniCharts";
 
 interface Props {
   /** When set, analytics are locked to this one employee (no picker). */
@@ -201,24 +202,15 @@ export function AttendanceAnalytics({
                 {stats.totalHours.toFixed(1)} h total
               </span>
             </div>
-            <div className="flex h-40 items-end gap-3">
-              {stats.weeks.map((h, i) => (
-                <div key={i} className="flex flex-1 flex-col items-center gap-1.5">
-                  <span className="text-[11px] font-semibold text-gray-500">
-                    {h > 0 ? `${h.toFixed(1)}` : ""}
-                  </span>
-                  <div className="flex w-full flex-1 items-end">
-                    <div
-                      className="w-full rounded-t-lg bg-gradient-primary transition-all"
-                      style={{
-                        height: `${Math.max(h > 0 ? 6 : 0, (h / maxWeek) * 100)}%`,
-                      }}
-                    />
-                  </div>
-                  <span className="text-[11px] text-gray-400">W{i + 1}</span>
-                </div>
-              ))}
-            </div>
+            <BarChart
+              data={stats.weeks.map((h, i) => ({
+                label: `W${i + 1}`,
+                value: Math.round(h * 10) / 10,
+              }))}
+              max={maxWeek}
+              showValues
+              unit="h"
+            />
             <p className="mt-3 text-xs text-gray-400">
               Hours = check-out − check-in. Standard day ends{" "}
               {CHECKOUT_WINDOW.startHour - 12}–{CHECKOUT_WINDOW.endHour - 12} PM.

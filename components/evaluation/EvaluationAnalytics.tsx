@@ -9,6 +9,7 @@ import { monthOptions, yearOptions, monthRange, MONTHS } from "@/lib/dates";
 import type { Evaluation } from "@/lib/types";
 import { Select } from "@/components/ui/Select";
 import { SkeletonCard } from "@/components/ui/LoadingSkeleton";
+import { BarChart, LineChart } from "@/components/ui/MiniCharts";
 import { scoreMeta, type Subject } from "./shared";
 
 interface Props {
@@ -142,38 +143,26 @@ export function EvaluationAnalytics({ scope, evaluatorId, department }: Props) {
       ) : (
         <>
           <p className="mb-4 text-sm text-gray-500">
-            {picked ? "Daily performance score" : "Average score per person"} ·{" "}
-            <span className="font-semibold text-dark-base">
-              avg {avg}%
-            </span>
+            {picked ? "Daily performance trend" : "Average score per person"} ·{" "}
+            <span className="font-semibold text-dark-base">avg {avg}%</span>
           </p>
-          <div className="flex h-52 items-end gap-2 overflow-x-auto pb-1">
-            {bars.map((b, i) => {
-              const m = scoreMeta(b.value);
-              return (
-                <div
-                  key={i}
-                  className="flex min-w-[42px] flex-1 flex-col items-center gap-1.5"
-                >
-                  <span className="text-[11px] font-bold" style={{ color: m.color }}>
-                    {b.value}
-                  </span>
-                  <div className="flex w-full flex-1 items-end">
-                    <div
-                      className="w-full rounded-t-lg transition-all"
-                      style={{
-                        height: `${Math.max(4, b.value)}%`,
-                        backgroundColor: m.color,
-                      }}
-                    />
-                  </div>
-                  <span className="max-w-[56px] truncate text-[10px] text-gray-400">
-                    {b.label}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
+          {picked ? (
+            <LineChart
+              data={bars.map((b) => ({
+                label: b.label,
+                value: b.value,
+                color: scoreMeta(b.value).color,
+              }))}
+            />
+          ) : (
+            <BarChart
+              data={bars.map((b) => ({
+                label: b.label,
+                value: b.value,
+                color: scoreMeta(b.value).color,
+              }))}
+            />
+          )}
         </>
       )}
     </div>
