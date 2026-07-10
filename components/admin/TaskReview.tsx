@@ -9,12 +9,14 @@ import { createClient } from "@/lib/supabaseClient";
 import { openStoredFile } from "@/lib/storage";
 import { notifyEvent } from "@/lib/notify";
 import { STORAGE_BUCKETS } from "@/lib/constants";
+import { monthOptions, yearOptions, monthRange } from "@/lib/dates";
 import type { StoredFile } from "@/lib/types";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonCard } from "@/components/ui/LoadingSkeleton";
+import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
 import { cn } from "@/lib/utils";
 
@@ -91,47 +93,76 @@ function DailyLogs({
   supabase: SupabaseClient;
   adminUid: string;
 }) {
+  const now = useMemo(() => new Date(), []);
+  const [year, setYear] = useState(now.getFullYear());
+  const [month, setMonth] = useState<number | null>(now.getMonth());
+
   const { data, isLoading } = useQuery({
-    queryKey: ["admin", "task_logs"],
+    queryKey: ["admin", "task_logs", year, month],
     queryFn: async (): Promise<LogRow[]> => {
+      const { start, end } = monthRange(year, month);
       const { data, error } = await supabase
         .from("daily_task_logs")
         .select(
           "id, profile_id, task_title, description, day_number, proof_files, submitted_at, plan:thirty_day_plans(plan_number), profile:profiles(full_name, employee_id, avatar_url), comments:admin_comments(id, comment, created_at)",
         )
+        .gte("created_at", start)
+        .lt("created_at", end)
         .order("submitted_at", { ascending: false })
-        .limit(80);
+        .limit(300);
       if (error) throw error;
       return (data ?? []) as unknown as LogRow[];
     },
   });
 
-  if (isLoading)
-    return (
-      <div className="space-y-4">
-        <SkeletonCard />
-        <SkeletonCard />
+  const filters = (
+    <div className="flex gap-2">
+      <div className="w-36">
+        <Select
+          value={month === null ? "" : String(month)}
+          onChange={(e) =>
+            setMonth(e.target.value === "" ? null : Number(e.target.value))
+          }
+          options={monthOptions()}
+        />
       </div>
-    );
-
-  if (!data || data.length === 0)
-    return (
-      <EmptyState
-        title="No submissions yet"
-        message="Daily task submissions from employees will appear here."
-      />
-    );
+      <div className="w-24">
+        <Select
+          value={String(year)}
+          onChange={(e) => setYear(Number(e.target.value))}
+          options={yearOptions(now.getFullYear())}
+        />
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-4">
-      {data.map((log) => (
-        <LogCard
-          key={log.id}
-          log={log}
-          supabase={supabase}
-          adminUid={adminUid}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-gray-500">Daily submissions by employees</p>
+        {filters}
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-4">
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
+      ) : !data || data.length === 0 ? (
+        <EmptyState
+          title="No submissions for this period"
+          message="Try a different month or year."
         />
-      ))}
+      ) : (
+        data.map((log) => (
+          <LogCard
+            key={log.id}
+            log={log}
+            supabase={supabase}
+            adminUid={adminUid}
+          />
+        ))
+      )}
     </div>
   );
 }
@@ -192,7 +223,7 @@ function LogCard({
             <p className="text-xs text-gray-400">
               {p?.employee_id} ·{" "}
               {log.submitted_at
-                ? format(new Date(log.submitted_at), "dd MMM yyyy, hh:mm a")
+                ? format(new Date(log.submitted_at), "EEE, dd MMM yyyy · hh:mm a")
                 : "—"}
             </p>
           </div>

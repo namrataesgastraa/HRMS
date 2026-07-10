@@ -14,6 +14,7 @@ import {
   CalendarCheck,
   ListTodo,
   User,
+  Clock,
 } from "lucide-react";
 import { createClient } from "@/lib/supabaseClient";
 import {
@@ -541,18 +542,42 @@ function TasksByDay({
 
   return (
     <div className="space-y-4">
-      {byDay.map(([day, dayTasks]) => (
+      {byDay.map(([day, dayTasks]) => {
+        const when = dayTasks[0].submitted_at ?? dayTasks[0].created_at;
+        return (
         <div key={day} className="rounded-2xl border border-gray-100 bg-white p-5 shadow-card">
-          <p className="mb-3 text-sm font-bold text-dark-base">
-            Day {day}
-            <span className="ml-2 font-normal text-gray-400">
+          <div className="mb-3 flex items-baseline justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold text-dark-base">Day {day}</p>
+              {when && (
+                <p className="mt-0.5 text-xs font-medium text-gray-500">
+                  {format(new Date(when), "EEEE, dd MMM yyyy")}
+                </p>
+              )}
+            </div>
+            <span className="shrink-0 text-xs text-gray-400">
               {dayTasks.length} task{dayTasks.length > 1 ? "s" : ""}
             </span>
-          </p>
+          </div>
           <div className="space-y-3">
-            {dayTasks.map((t) => (
+            {dayTasks.map((t) => {
+              const ts = t.submitted_at ?? t.created_at;
+              return (
               <div key={t.id} className="rounded-xl border border-gray-100 bg-gray-50/60 p-3">
-                <p className="text-sm font-semibold text-dark-base">{t.task_title}</p>
+                <div className="flex items-start justify-between gap-3">
+                  <p className="text-sm font-semibold text-dark-base">{t.task_title}</p>
+                  {ts && (
+                    <span className="inline-flex shrink-0 items-center gap-1 text-xs text-gray-400">
+                      <Clock className="h-3 w-3" />
+                      {format(new Date(ts), "dd MMM · hh:mm a")}
+                      {t.is_late && (
+                        <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
+                          Late
+                        </span>
+                      )}
+                    </span>
+                  )}
+                </div>
                 {t.description && (
                   <p className="mt-0.5 text-sm text-gray-600">{t.description}</p>
                 )}
@@ -572,10 +597,12 @@ function TasksByDay({
                   </div>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
