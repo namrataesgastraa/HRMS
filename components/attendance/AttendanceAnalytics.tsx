@@ -11,9 +11,14 @@ import { Select } from "@/components/ui/Select";
 import { SkeletonCard } from "@/components/ui/LoadingSkeleton";
 
 interface Props {
-  /** When set, analytics are for this one employee; otherwise the whole team. */
+  /** When set, analytics are locked to this one employee (no picker). */
   uid?: string;
   title?: string;
+  /**
+   * Show an employee picker (admin/manager view) so the whole team OR a single
+   * person can be charted. Ignored when `uid` is set.
+   */
+  allowEmployeePicker?: boolean;
 }
 
 const STATUS_META: Record<string, { label: string; color: string }> = {
@@ -30,14 +35,38 @@ function hoursBetween(a: string | null, b: string | null): number {
   return h > 0 && h < 24 ? h : 0;
 }
 
-export function AttendanceAnalytics({ uid, title }: Props) {
+export function AttendanceAnalytics({
+  uid,
+  title,
+  allowEmployeePicker = false,
+}: Props) {
   const supabase = useMemo(() => createClient(), []);
   const now = useMemo(() => new Date(), []);
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState<number>(now.getMonth());
+  const [picked, setPicked] = useState<string>(""); // "" = all employees
+
+  const pickerOn = allowEmployeePicker && !uid;
+
+  // Employee list for the picker (admin/manager only).
+  const { data: people } = useQuery({
+    queryKey: ["analytics", "people"],
+    enabled: pickerOn,
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("id, full_name")
+        .order("full_name");
+      if (error) throw error;
+      return (data ?? []) as { id: string; full_name: string | null }[];
+    },
+  });
+
+  const filterUid = uid ?? (picked || undefined);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["attendance", "analytics", uid ?? "all", year, month],
+    queryKey: ["attendance", "analytics", filterUid ?? "all", year, month],
     queryFn: async (): Promise<AttendanceRecord[]> => {
       const { start, end } = monthRange(year, month);
       let q = supabase
@@ -45,7 +74,7 @@ export function AttendanceAnalytics({ uid, title }: Props) {
         .select("*")
         .gte("check_in_time", start)
         .lt("check_in_time", end);
-      if (uid) q = q.eq("profile_id", uid);
+      if (filterUid) q = q.eq("profile_id", filterUid);
       const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as AttendanceRecord[];
@@ -90,7 +119,22 @@ export function AttendanceAnalytics({ uid, title }: Props) {
             {title ?? "Attendance analytics"}
           </h2>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {pickerOn && (
+            <div className="w-48">
+              <Select
+                value={picked}
+                onChange={(e) => setPicked(e.target.value)}
+                options={[
+                  { label: "All employees", value: "" },
+                  ...(people ?? []).map((p) => ({
+                    label: p.full_name ?? "—",
+                    value: p.id,
+                  })),
+                ]}
+              />
+            </div>
+          )}
           <div className="w-36">
             <Select
               value={String(month)}

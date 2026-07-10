@@ -47,6 +47,7 @@ import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Spinner } from "@/components/ui/Spinner";
 import { useToast } from "@/components/ui/Toast";
+import { AttendanceAnalytics } from "@/components/attendance/AttendanceAnalytics";
 import { cn } from "@/lib/utils";
 
 type Tab = "overview" | "attendance" | "tasks" | "activity";
@@ -355,6 +356,8 @@ export function AdminEmployeeDetail({
 
       {/* Attendance */}
       {tab === "attendance" && (
+        <div className="space-y-4">
+        <AttendanceAnalytics uid={employeeId} title="Attendance analytics" />
         <Section title={`Attendance · ${data!.attendance.length} recent`}>
           {data!.attendance.length === 0 ? (
             <p className="text-sm text-gray-400">No records.</p>
@@ -394,6 +397,7 @@ export function AdminEmployeeDetail({
             </div>
           )}
         </Section>
+        </div>
       )}
 
       {/* Tasks — grouped by day, per-task proof with View */}

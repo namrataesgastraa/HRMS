@@ -12,7 +12,10 @@ export default function AdminAttendancePage() {
           All check-ins · anomalies flagged (late, far, mock GPS).
         </p>
       </div>
-      <AttendanceAnalytics title="Team attendance analytics" />
+      <AttendanceAnalytics
+        title="Attendance analytics"
+        allowEmployeePicker
+      />
       <AttendanceTable />
     </div>
   );
