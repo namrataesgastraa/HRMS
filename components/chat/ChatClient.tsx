@@ -64,6 +64,14 @@ const EMOJIS = [
   "📎","📷","📄","📅","⏰","☕","😢","😮","😇","🙈",
 ];
 
+function Dot({ count }: { count: number }) {
+  return (
+    <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
+
 export function ChatClient({ uid, userName, canChat, userAvatar, department }: Props) {
   const supabase = useMemo(() => createClient(), []);
   const { toast } = useToast();
@@ -78,6 +86,7 @@ export function ChatClient({ uid, userName, canChat, userAvatar, department }: P
   const [files, setFiles] = useState<File[]>([]);
   const [sending, setSending] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
+  const [needsMigration, setNeedsMigration] = useState(false);
   // Per-peer "last read" timestamps (ms) → drives DM unread badges.
   const readKey = `chat-lastread-${uid}`;
   const [lastRead, setLastRead] = useState<Record<string, number>>(() => {
@@ -106,19 +115,42 @@ export function ChatClient({ uid, userName, canChat, userAvatar, department }: P
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Initial load: everything RLS lets me see (global + my dept + my DMs).
+  // Falls back to base columns if migration 0011 (recipient_id/attachments)
+  // hasn't been applied yet — so existing global/department chat never vanishes.
   useEffect(() => {
     let active = true;
     (async () => {
-      const { data } = await supabase
+      const FULL =
+        "id, content, created_at, sender_id, recipient_id, department, attachments, sender:profiles(full_name, avatar_url)";
+      const BASE =
+        "id, content, created_at, sender_id, department, sender:profiles(full_name, avatar_url)";
+      let data: unknown[] | null = null;
+      const full = await supabase
         .from("messages")
-        .select(
-          "id, content, created_at, sender_id, recipient_id, department, attachments, sender:profiles(full_name, avatar_url)",
-        )
+        .select(FULL)
         .order("created_at", { ascending: true })
         .limit(2000);
+      if (full.error) {
+        // Most likely: recipient_id/attachments columns don't exist yet.
+        if (active) setNeedsMigration(true);
+        const base = await supabase
+          .from("messages")
+          .select(BASE)
+          .order("created_at", { ascending: true })
+          .limit(2000);
+        data = base.data;
+      } else {
+        data = full.data;
+      }
       if (!active) return;
       const rows = ((data ?? []) as unknown as Array<
-        Omit<ChatMessage, "senderName" | "senderAvatar"> & { sender: SenderJoin }
+        Partial<Omit<ChatMessage, "senderName" | "senderAvatar">> & {
+          id: string;
+          content: string;
+          created_at: string;
+          sender_id: string;
+          sender: SenderJoin;
+        }
       >).map((r) => {
         const s = pickSender(r.sender);
         return {
@@ -218,13 +250,39 @@ export function ChatClient({ uid, userName, canChat, userAvatar, department }: P
                   },
                 ],
           );
+
+          // Pop a notification for messages from others that aren't in the
+          // conversation currently open on screen.
+          if (row.sender_id !== uid) {
+            const key = row.recipient_id
+              ? row.recipient_id === uid
+                ? row.sender_id
+                : row.recipient_id
+              : row.department
+                ? "dept"
+                : "global";
+            const relevant = row.recipient_id ? row.recipient_id === uid : true;
+            if (relevant && key !== activeKeyRef.current) {
+              const preview = row.content?.trim()
+                ? row.content.trim().slice(0, 90)
+                : row.attachments && row.attachments.length
+                  ? "📎 Sent an attachment"
+                  : "New message";
+              const scope = row.recipient_id
+                ? "Direct message"
+                : row.department
+                  ? row.department
+                  : "Team chat";
+              toast({ title: `💬 ${name} · ${scope}`, description: preview });
+            }
+          }
         },
       )
       .subscribe();
     return () => {
       supabase.removeChannel(chan);
     };
-  }, [supabase, uid, userName, userAvatar]);
+  }, [supabase, uid, userName, userAvatar, toast]);
 
   const shown = messages.filter((m) => {
     if (view === "global") return !m.recipient_id && !m.department;
@@ -237,28 +295,59 @@ export function ChatClient({ uid, userName, canChat, userAvatar, department }: P
     );
   });
 
-  // Unread DM count per sender (messages addressed to me, newer than last read).
-  // The conversation currently open is always treated as read.
-  const openPeerId = view === "direct" && peer ? peer.id : null;
-  const unreadByPeer = useMemo(() => {
+  // The conversation currently open — its key is always treated as "read".
+  // Keys: "global", "dept", or a peer's id (for direct messages).
+  const activeKey =
+    view === "global" ? "global" : view === "dept" ? "dept" : peer ? peer.id : "__none__";
+  const activeKeyRef = useRef(activeKey);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/immutability
+    activeKeyRef.current = activeKey;
+  }, [activeKey]);
+
+  // Unread counts per conversation key (messages from others, newer than last
+  // read, excluding whichever conversation is currently open).
+  const unreadByKey = useMemo(() => {
     const map: Record<string, number> = {};
     for (const m of messages) {
-      if (m.recipient_id === uid && m.sender_id !== uid && m.sender_id !== openPeerId) {
-        if (new Date(m.created_at).getTime() > (lastRead[m.sender_id] ?? 0)) {
-          map[m.sender_id] = (map[m.sender_id] ?? 0) + 1;
-        }
+      if (m.sender_id === uid) continue;
+      let key: string;
+      if (m.recipient_id) {
+        if (m.recipient_id !== uid) continue; // a DM not addressed to me
+        key = m.sender_id;
+      } else if (m.department) {
+        if (m.department !== department) continue;
+        key = "dept";
+      } else {
+        key = "global";
+      }
+      if (key === activeKey) continue;
+      if (new Date(m.created_at).getTime() > (lastRead[key] ?? 0)) {
+        map[key] = (map[key] ?? 0) + 1;
       }
     }
     return map;
-  }, [messages, uid, lastRead, openPeerId]);
+  }, [messages, uid, department, lastRead, activeKey]);
+
+  const globalUnread = unreadByKey["global"] ?? 0;
+  const deptUnread = unreadByKey["dept"] ?? 0;
+  const unreadByPeer: Record<string, number> = {};
+  for (const [k, v] of Object.entries(unreadByKey)) {
+    if (k !== "global" && k !== "dept") unreadByPeer[k] = v;
+  }
   const totalUnread = Object.values(unreadByPeer).reduce((a, b) => a + b, 0);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, view, peer]);
 
-  // Leave the open conversation, persisting a "read up to now" marker so
-  // messages received while it was open don't resurface as unread.
+  // Switch channel, persisting a "read up to now" marker for the one we leave so
+  // messages seen there don't resurface as unread.
+  function switchView(next: "global" | "dept" | "direct") {
+    markRead(activeKey);
+    setView(next);
+    setPeer(null);
+  }
   function leavePeer() {
     if (peer) markRead(peer.id);
     setPeer(null);
@@ -366,31 +455,39 @@ export function ChatClient({ uid, userName, canChat, userAvatar, department }: P
           </>
         ) : (
           <div className="flex gap-1">
-            <button onClick={() => setView("global")} className={tabBtn(view === "global")}>
+            <button
+              onClick={() => switchView("global")}
+              className={cn(tabBtn(view === "global"), "relative inline-flex items-center gap-1.5")}
+            >
               Global
+              {globalUnread > 0 && <Dot count={globalUnread} />}
             </button>
             {department && (
-              <button onClick={() => setView("dept")} className={tabBtn(view === "dept")}>
+              <button
+                onClick={() => switchView("dept")}
+                className={cn(tabBtn(view === "dept"), "relative inline-flex items-center gap-1.5")}
+              >
                 {department}
+                {deptUnread > 0 && <Dot count={deptUnread} />}
               </button>
             )}
             <button
-              onClick={() => {
-                setView("direct");
-                setPeer(null);
-              }}
+              onClick={() => switchView("direct")}
               className={cn(tabBtn(view === "direct"), "relative inline-flex items-center gap-1.5")}
             >
               Direct
-              {totalUnread > 0 && (
-                <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">
-                  {totalUnread}
-                </span>
-              )}
+              {totalUnread > 0 && <Dot count={totalUnread} />}
             </button>
           </div>
         )}
       </div>
+
+      {needsMigration && (
+        <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800">
+          Personal chat &amp; attachments need a database update (migration 0011) — ask your
+          administrator to run it. Global &amp; department chat still work.
+        </div>
+      )}
 
       {/* Contact picker for Direct */}
       {showContactPicker ? (
