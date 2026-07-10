@@ -10,6 +10,8 @@ import {
   Clock,
   AlertTriangle,
   MessagesSquare,
+  Gauge,
+  ChevronRight,
 } from "lucide-react";
 import { createClient } from "@/lib/supabaseClient";
 import { Avatar } from "@/components/ui/Avatar";
@@ -160,6 +162,22 @@ export function AdminOverview() {
           </Link>
         ))}
       </div>
+
+      {/* Evaluation */}
+      <Link href="/admin/evaluation">
+        <div className="flex items-center gap-4 rounded-2xl border border-cool-blue/30 bg-cool-blue/5 p-5 shadow-card transition-shadow hover:shadow-soft">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-primary text-white">
+            <Gauge className="h-5 w-5" />
+          </div>
+          <div className="flex-1">
+            <p className="font-semibold text-dark-base">Evaluation</p>
+            <p className="text-sm text-gray-500">
+              Review &amp; rate managers&apos; daily performance
+            </p>
+          </div>
+          <ChevronRight className="h-5 w-5 text-cool-blue" />
+        </div>
+      </Link>
 
       {/* Recent chat */}
       <div className="rounded-2xl border border-gray-100 bg-white shadow-card">

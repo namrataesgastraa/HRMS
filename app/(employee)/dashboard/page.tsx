@@ -1,7 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { MapPin, ListTodo, MessagesSquare, UsersRound, ChevronRight } from "lucide-react";
+import {
+  MapPin,
+  ListTodo,
+  MessagesSquare,
+  UsersRound,
+  Gauge,
+  ChevronRight,
+} from "lucide-react";
 import { useCurrentUser } from "@/components/providers/CurrentUserProvider";
 import { TodayStatusCard } from "@/components/dashboard/TodayStatusCard";
 import { Card } from "@/components/ui";
@@ -40,6 +47,23 @@ export default function DashboardPage() {
               </p>
             </div>
             <ChevronRight className="h-5 w-5 text-electric-violet" />
+          </Card>
+        </Link>
+      )}
+
+      {isManager && (
+        <Link href="/evaluation">
+          <Card className="flex items-center gap-4 border-cool-blue/30 bg-cool-blue/5 p-5 transition-shadow hover:shadow-soft">
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-primary text-white">
+              <Gauge className="h-5 w-5" />
+            </div>
+            <div className="flex-1">
+              <p className="font-semibold text-dark-base">Evaluation</p>
+              <p className="text-sm text-gray-500">
+                Review &amp; rate your team&apos;s daily performance
+              </p>
+            </div>
+            <ChevronRight className="h-5 w-5 text-cool-blue" />
           </Card>
         </Link>
       )}
