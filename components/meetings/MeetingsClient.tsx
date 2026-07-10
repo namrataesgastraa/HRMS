@@ -358,11 +358,17 @@ function CreateMeeting({
       toast({ title: "Meeting scheduled ✓", description: "Invites sent.", variant: "success" });
       onClose();
     } catch (err) {
-      toast({
-        title: "Couldn't schedule",
-        description: err instanceof Error ? err.message : "Please try again.",
-        variant: "error",
-      });
+      const raw = err instanceof Error ? err.message : String(err);
+      let description = raw || "Please try again.";
+      if (/schema cache|does not exist|find the table|PGRST205/i.test(raw)) {
+        description =
+          "The meetings database update isn't live yet. Run migration 0014, then wait ~30s for Supabase to refresh (or run: NOTIFY pgrst, 'reload schema';).";
+      } else if (/row-level security|violates row-level|permission denied/i.test(raw)) {
+        description =
+          "Permission blocked by the database. Managers can only invite members of their own department — check the department values match.";
+      }
+      console.error("meeting create failed:", raw);
+      toast({ title: "Couldn't schedule", description, variant: "error" });
     } finally {
       setSaving(false);
     }
