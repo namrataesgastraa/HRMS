@@ -14,6 +14,7 @@ export interface SidebarProps {
   user?: { name?: string | null; email?: string | null; avatarUrl?: string | null };
   onNavigate?: () => void;
   onSignOut?: () => void;
+  unreadChat?: number;
   className?: string;
 }
 
@@ -23,6 +24,7 @@ export function Sidebar({
   user,
   onNavigate,
   onSignOut,
+  unreadChat = 0,
   className,
 }: SidebarProps) {
   const pathname = usePathname();
@@ -52,6 +54,8 @@ export function Sidebar({
       <nav className="flex-1 space-y-1 px-3 py-2">
         {items.map((item) => {
           const active = isActive(item.href);
+          const showBadge =
+            role !== "admin" && item.href.endsWith("/chat") && unreadChat > 0;
           return (
             <Link
               key={item.href}
@@ -65,7 +69,12 @@ export function Sidebar({
               )}
             >
               <item.icon className="h-[18px] w-[18px]" />
-              {item.label}
+              <span className="flex-1">{item.label}</span>
+              {showBadge && (
+                <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">
+                  {unreadChat > 99 ? "99+" : unreadChat}
+                </span>
+              )}
             </Link>
           );
         })}

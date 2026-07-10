@@ -102,6 +102,8 @@ export function ChatClient({ uid, userName, canChat, userAvatar, department }: P
       const next = { ...prev, [peerId]: Date.now() };
       try {
         localStorage.setItem(readKey, JSON.stringify(next));
+        // Let the nav badge (useUnreadChat) recompute immediately.
+        window.dispatchEvent(new Event("chat:read"));
       } catch {
         /* ignore */
       }
@@ -247,7 +249,11 @@ export function ChatClient({ uid, userName, canChat, userAvatar, department }: P
                 ? "dept"
                 : "global";
             const relevant = row.recipient_id ? row.recipient_id === uid : true;
-            if (relevant && key !== activeKeyRef.current) {
+            if (relevant && key === activeKeyRef.current) {
+              // Already looking at this conversation → keep it read (clears the
+              // nav badge too) instead of notifying.
+              markRead(key);
+            } else if (relevant) {
               const preview = row.content?.trim()
                 ? row.content.trim().slice(0, 90)
                 : row.attachments && row.attachments.length
@@ -267,6 +273,9 @@ export function ChatClient({ uid, userName, canChat, userAvatar, department }: P
     return () => {
       supabase.removeChannel(chan);
     };
+    // markRead is a stable closure (only uses setState/readKey) — omit to avoid
+    // tearing down the realtime subscription on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase, uid, userName, userAvatar, toast]);
 
   const shown = messages.filter((m) => {

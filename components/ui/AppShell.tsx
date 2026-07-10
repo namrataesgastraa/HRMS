@@ -12,6 +12,7 @@ export interface AppShellProps {
   title?: string;
   actions?: React.ReactNode;
   onSignOut?: () => void;
+  unreadChat?: number;
   children: React.ReactNode;
 }
 
@@ -25,6 +26,7 @@ export function AppShell({
   title,
   actions,
   onSignOut,
+  unreadChat,
   children,
 }: AppShellProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -37,6 +39,7 @@ export function AppShell({
           role={role}
           user={user}
           onSignOut={onSignOut}
+          unreadChat={unreadChat}
           className="fixed inset-y-0 left-0"
         />
       </div>
@@ -68,6 +71,7 @@ export function AppShell({
             user={user}
             onSignOut={onSignOut}
             onNavigate={() => setDrawerOpen(false)}
+            unreadChat={unreadChat}
           />
         </div>
       </div>
@@ -79,6 +83,7 @@ export function AppShell({
           user={user}
           actions={actions}
           onMenuClick={() => setDrawerOpen(true)}
+          unreadChat={role === "admin" ? 0 : unreadChat}
         />
         <main className="pb-safe flex-1 p-4 sm:p-6">{children}</main>
       </div>

@@ -12,10 +12,11 @@ export interface TopNavProps {
   user?: { name?: string | null; avatarUrl?: string | null };
   onMenuClick?: () => void;
   actions?: React.ReactNode;
+  unreadChat?: number;
 }
 
 /** Mobile/top header — shows the hamburger on small screens plus page title. */
-export function TopNav({ title, user, onMenuClick, actions }: TopNavProps) {
+export function TopNav({ title, user, onMenuClick, actions, unreadChat = 0 }: TopNavProps) {
   const pathname = usePathname();
   const heading = title ?? titleForPath(pathname);
   return (
@@ -24,9 +25,12 @@ export function TopNav({ title, user, onMenuClick, actions }: TopNavProps) {
         <button
           onClick={onMenuClick}
           aria-label="Open menu"
-          className="rounded-lg p-2 text-dark-base transition-colors hover:bg-gray-100 lg:hidden"
+          className="relative rounded-lg p-2 text-dark-base transition-colors hover:bg-gray-100 lg:hidden"
         >
           <Menu className="h-5 w-5" />
+          {unreadChat > 0 && (
+            <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
+          )}
         </button>
         <h1 className="truncate text-base font-bold text-dark-base">{heading}</h1>
         <div className="ml-auto flex items-center gap-2">
