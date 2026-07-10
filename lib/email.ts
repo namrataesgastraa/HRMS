@@ -28,13 +28,27 @@ export async function sendMail(
   if (recipients.length === 0) return;
   const t = getTransport();
   if (!t) return;
+  // Plain-text fallback (multipart mail is treated as more legitimate).
+  const text = html
+    .replace(/<style[\s\S]*?<\/style>/gi, "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
   try {
     await t.sendMail({
       from: `ESG Astraa HRMS <${process.env.EMAIL_USER}>`,
       to: recipients.join(", "),
+      replyTo: process.env.EMAIL_ADMIN || process.env.EMAIL_USER,
       subject,
+      text,
       html,
+      headers: {
+        "List-Unsubscribe": `<mailto:${process.env.EMAIL_USER}?subject=unsubscribe>`,
+        "X-Auto-Response-Suppress": "All",
+        "Auto-Submitted": "auto-generated",
+      },
     });
+    console.log("sendMail OK →", recipients.join(", "));
   } catch (err) {
     console.error("sendMail failed:", err);
   }
