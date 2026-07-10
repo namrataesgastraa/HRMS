@@ -50,9 +50,17 @@ interface Props {
 
 const canCreate = (s: Props["scope"]) => s === "admin" || s === "manager";
 
+type MeetingStatus = "upcoming" | "ended" | "cancelled";
+
+function statusOf(m: MeetingRow): MeetingStatus {
+  if (m.cancelled_at) return "cancelled";
+  return isAfter(new Date(m.scheduled_at), new Date()) ? "upcoming" : "ended";
+}
+
 export function MeetingsClient({ scope, uid, department }: Props) {
   const supabase = useMemo(() => createClient(), []);
   const [creating, setCreating] = useState(false);
+  const [tab, setTab] = useState<"upcoming" | "history">("upcoming");
 
   const { data, isLoading } = useQuery({
     queryKey: ["meetings", uid],
@@ -68,9 +76,21 @@ export function MeetingsClient({ scope, uid, department }: Props) {
     },
   });
 
-  const now = new Date();
-  const upcoming = (data ?? []).filter((m) => isAfter(new Date(m.scheduled_at), now));
-  const past = (data ?? []).filter((m) => !isAfter(new Date(m.scheduled_at), now));
+  const all = data ?? [];
+  const upcoming = all
+    .filter((m) => statusOf(m) === "upcoming")
+    .sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at)); // soonest first
+  const history = all.filter((m) => statusOf(m) !== "upcoming"); // newest first (query order)
+
+  const list = tab === "upcoming" ? upcoming : history;
+
+  const tabBtn = (active: boolean) =>
+    cn(
+      "rounded-lg px-4 py-2 text-sm font-semibold transition-colors",
+      active
+        ? "bg-gradient-primary text-white shadow-soft"
+        : "text-gray-500 hover:text-dark-base",
+    );
 
   return (
     <div className="space-y-6">
@@ -100,40 +120,40 @@ export function MeetingsClient({ scope, uid, department }: Props) {
         />
       )}
 
+      <div className="inline-flex rounded-xl border border-gray-100 bg-white p-1 shadow-card">
+        <button onClick={() => setTab("upcoming")} className={tabBtn(tab === "upcoming")}>
+          Upcoming{upcoming.length > 0 ? ` (${upcoming.length})` : ""}
+        </button>
+        <button onClick={() => setTab("history")} className={tabBtn(tab === "history")}>
+          History{history.length > 0 ? ` (${history.length})` : ""}
+        </button>
+      </div>
+
       {isLoading ? (
         <SkeletonCard />
-      ) : (data ?? []).length === 0 ? (
+      ) : list.length === 0 ? (
         <EmptyState
           icon={Video}
-          title="No meetings yet"
+          title={tab === "upcoming" ? "No upcoming meetings" : "No meeting history yet"}
           message={
-            canCreate(scope)
-              ? "Schedule your first team meeting with the button above."
-              : "When you're invited to a meeting, it'll appear here."
+            tab === "upcoming"
+              ? canCreate(scope)
+                ? "Schedule a team meeting with the button above."
+                : "When you're invited to a meeting, it'll appear here."
+              : "Past and cancelled meetings will be kept here."
           }
         />
       ) : (
-        <div className="space-y-6">
-          {upcoming.length > 0 && (
-            <div className="space-y-3">
-              <h2 className="text-sm font-bold uppercase tracking-wide text-gray-400">
-                Upcoming
-              </h2>
-              {upcoming.map((m) => (
-                <MeetingCard key={m.id} m={m} uid={uid} supabase={supabase} upcoming />
-              ))}
-            </div>
-          )}
-          {past.length > 0 && (
-            <div className="space-y-3">
-              <h2 className="text-sm font-bold uppercase tracking-wide text-gray-400">
-                Past
-              </h2>
-              {past.map((m) => (
-                <MeetingCard key={m.id} m={m} uid={uid} supabase={supabase} />
-              ))}
-            </div>
-          )}
+        <div className="space-y-3">
+          {list.map((m) => (
+            <MeetingCard
+              key={m.id}
+              m={m}
+              uid={uid}
+              supabase={supabase}
+              status={statusOf(m)}
+            />
+          ))}
         </div>
       )}
     </div>
@@ -145,20 +165,26 @@ function MeetingCard({
   m,
   uid,
   supabase,
-  upcoming = false,
+  status,
 }: {
   m: MeetingRow;
   uid: string;
   supabase: ReturnType<typeof createClient>;
-  upcoming?: boolean;
+  status: MeetingStatus;
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const isHost = m.host_id === uid;
   const count = m.attendees?.length ?? 0;
+  const upcoming = status === "upcoming";
+  const cancelled = status === "cancelled";
 
-  async function remove() {
-    const { error } = await supabase.from("meetings").delete().eq("id", m.id);
+  async function cancelMeeting() {
+    // Soft-cancel so it stays in history.
+    const { error } = await supabase
+      .from("meetings")
+      .update({ cancelled_at: new Date().toISOString() })
+      .eq("id", m.id);
     if (error) {
       toast({ title: "Couldn't cancel", description: error.message, variant: "error" });
       return;
@@ -171,7 +197,8 @@ function MeetingCard({
     <div
       className={cn(
         "rounded-2xl border bg-white p-5 shadow-card",
-        upcoming ? "border-electric-violet/20" : "border-gray-100 opacity-90",
+        upcoming ? "border-electric-violet/20" : "border-gray-100",
+        cancelled && "opacity-75",
       )}
     >
       <div className="flex items-start justify-between gap-3">
@@ -180,7 +207,14 @@ function MeetingCard({
             <Video className="h-5 w-5" />
           </div>
           <div>
-            <p className="font-bold text-dark-base">{m.title}</p>
+            <p
+              className={cn(
+                "font-bold text-dark-base",
+                cancelled && "text-gray-400 line-through",
+              )}
+            >
+              {m.title}
+            </p>
             <div className="mt-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-gray-500">
               <span className="inline-flex items-center gap-1">
                 <Calendar className="h-3.5 w-3.5" />
@@ -197,12 +231,14 @@ function MeetingCard({
             </div>
           </div>
         </div>
-        {upcoming ? (
+        {cancelled ? (
+          <Badge variant="absent">Cancelled</Badge>
+        ) : upcoming ? (
           <Badge variant="present" dot>
             Upcoming
           </Badge>
         ) : (
-          <Badge variant="absent">Ended</Badge>
+          <Badge variant="info">Ended</Badge>
         )}
       </div>
 
@@ -212,7 +248,7 @@ function MeetingCard({
         </p>
       )}
 
-      {(m.access_username || m.access_password) && (
+      {!cancelled && (m.access_username || m.access_password) && (
         <div className="mt-3 flex flex-wrap gap-3 text-xs text-gray-600">
           {m.access_username && (
             <span className="inline-flex items-center gap-1 rounded-lg bg-gray-50 px-2.5 py-1">
@@ -235,16 +271,16 @@ function MeetingCard({
           Hosted by {m.host?.full_name ?? "—"}
         </div>
         <div className="flex items-center gap-2">
-          {isHost && (
+          {isHost && upcoming && (
             <button
-              onClick={remove}
+              onClick={cancelMeeting}
               className="inline-flex items-center gap-1 rounded-lg px-2.5 py-2 text-xs font-medium text-red-500 hover:bg-red-50"
             >
               <Trash2 className="h-3.5 w-3.5" />
               Cancel
             </button>
           )}
-          {m.meeting_link && (
+          {!cancelled && m.meeting_link && (
             <a href={m.meeting_link} target="_blank" rel="noopener noreferrer">
               <Button size="sm" leftIcon={<LinkIcon className="h-4 w-4" />}>
                 Join

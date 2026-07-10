@@ -63,6 +63,7 @@ export interface Meeting {
   access_password: string | null;
   scheduled_at: string;
   department: string | null;
+  cancelled_at: string | null;
   created_at: string;
 }
 
