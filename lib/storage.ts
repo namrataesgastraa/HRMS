@@ -56,6 +56,29 @@ export async function uploadPublicFiles(
   return out;
 }
 
+/**
+ * Upload chat attachments to the PUBLIC chat-files bucket, keeping the real
+ * mime type (so images can render inline). `url` is the public URL.
+ */
+export async function uploadChatFiles(
+  supabase: SupabaseClient,
+  uid: string,
+  files: File[],
+): Promise<StoredFile[]> {
+  const out: StoredFile[] = [];
+  for (const file of files) {
+    const safeName = file.name.replace(/[^\w.\-]+/g, "_");
+    const path = `${uid}/${crypto.randomUUID()}-${safeName}`;
+    const { error } = await supabase.storage
+      .from("chat-files")
+      .upload(path, file, { upsert: false, contentType: file.type });
+    if (error) throw error;
+    const { data } = supabase.storage.from("chat-files").getPublicUrl(path);
+    out.push({ url: data.publicUrl, type: file.type || "file", filename: file.name });
+  }
+  return out;
+}
+
 /** Turn pasted URLs into StoredFile proof entries (type "link"). */
 export function linksToStoredFiles(links: string[]): StoredFile[] {
   return links

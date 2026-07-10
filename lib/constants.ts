@@ -31,6 +31,7 @@ export const STORAGE_BUCKETS = {
   proofOfWork: "proof-of-work",
   avatars: "avatars",
   taskAttachments: "task-attachments",
+  chatFiles: "chat-files",
 } as const;
 
 /** Celebratory on-time submission messages (CLAUDE.md §4.5). */
