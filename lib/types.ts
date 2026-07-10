@@ -53,6 +53,17 @@ export interface Evaluation {
   updated_at: string;
 }
 
+export interface EvaluationEvent {
+  id: string;
+  evaluator_id: string;
+  subject_id: string;
+  eval_date: string;
+  score: number;
+  checked_count: number | null;
+  note: string | null;
+  created_at: string;
+}
+
 export interface AssignedTask {
   id: string;
   admin_id: string;

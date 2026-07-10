@@ -25,6 +25,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonCard } from "@/components/ui/LoadingSkeleton";
 import { useToast } from "@/components/ui/Toast";
 import { EvaluationAnalytics } from "./EvaluationAnalytics";
+import { EvaluationHistory } from "./EvaluationHistory";
 import { scoreMeta, type Subject } from "./shared";
 import { cn } from "@/lib/utils";
 
@@ -36,7 +37,9 @@ interface Props {
 
 export function EvaluationClient({ scope, evaluatorId, department }: Props) {
   const supabase = useMemo(() => createClient(), []);
-  const [tab, setTab] = useState<"evaluate" | "analytics">("evaluate");
+  const [tab, setTab] = useState<"evaluate" | "history" | "analytics">(
+    "evaluate",
+  );
   const [subject, setSubject] = useState<Subject | null>(null);
   const [search, setSearch] = useState("");
 
@@ -69,8 +72,11 @@ export function EvaluationClient({ scope, evaluatorId, department }: Props) {
   return (
     <div className="space-y-5">
       <div className="inline-flex rounded-xl border border-gray-100 bg-white p-1 shadow-card">
-        <button onClick={() => { setTab("evaluate"); }} className={tabBtn(tab === "evaluate")}>
+        <button onClick={() => setTab("evaluate")} className={tabBtn(tab === "evaluate")}>
           Evaluate
+        </button>
+        <button onClick={() => setTab("history")} className={tabBtn(tab === "history")}>
+          History
         </button>
         <button onClick={() => setTab("analytics")} className={tabBtn(tab === "analytics")}>
           Analytics
@@ -79,6 +85,12 @@ export function EvaluationClient({ scope, evaluatorId, department }: Props) {
 
       {tab === "analytics" ? (
         <EvaluationAnalytics
+          scope={scope}
+          evaluatorId={evaluatorId}
+          department={department}
+        />
+      ) : tab === "history" ? (
+        <EvaluationHistory
           scope={scope}
           evaluatorId={evaluatorId}
           department={department}
@@ -339,6 +351,15 @@ function DailyEval({
         { onConflict: "evaluator_id,subject_id,eval_date" },
       );
       if (error) throw error;
+      // Append to the activity log (history) — never overwritten.
+      await supabase.from("evaluation_events").insert({
+        evaluator_id: evaluatorId,
+        subject_id: subject.id,
+        eval_date: evalDate,
+        score,
+        checked_count: checked.size,
+        note: note.trim() || null,
+      });
       await queryClient.invalidateQueries({ queryKey: ["evaluation"] });
       toast({ title: `Rated ${score}% — saved`, variant: "success" });
     } catch (err) {
