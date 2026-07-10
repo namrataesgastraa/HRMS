@@ -358,7 +358,14 @@ function CreateMeeting({
       toast({ title: "Meeting scheduled ✓", description: "Invites sent.", variant: "success" });
       onClose();
     } catch (err) {
-      const raw = err instanceof Error ? err.message : String(err);
+      const raw =
+        err instanceof Error
+          ? err.message
+          : err && typeof err === "object" && "message" in err
+            ? String((err as { message: unknown }).message)
+            : typeof err === "string"
+              ? err
+              : JSON.stringify(err);
       let description = raw || "Please try again.";
       if (/schema cache|does not exist|find the table|PGRST205/i.test(raw)) {
         description =
