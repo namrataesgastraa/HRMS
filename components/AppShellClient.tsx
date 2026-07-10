@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabaseClient";
 import { AppShell } from "@/components/ui/AppShell";
 import { useUnreadChat } from "@/lib/useUnreadChat";
+import { useUnreadMeetings } from "@/lib/useUnreadMeetings";
 import type { UserRole } from "@/lib/constants";
 
 interface Props {
@@ -22,6 +23,7 @@ export function AppShellClient({ role, user, title, actions, children }: Props) 
   const router = useRouter();
   const supabase = createClient();
   const unreadChat = useUnreadChat();
+  const unreadMeetings = useUnreadMeetings();
 
   async function signOut() {
     await supabase.auth.signOut();
@@ -37,6 +39,7 @@ export function AppShellClient({ role, user, title, actions, children }: Props) 
       actions={actions}
       onSignOut={signOut}
       unreadChat={unreadChat}
+      unreadMeetings={unreadMeetings}
     >
       {children}
     </AppShell>

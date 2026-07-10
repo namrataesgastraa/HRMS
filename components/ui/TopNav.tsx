@@ -13,10 +13,18 @@ export interface TopNavProps {
   onMenuClick?: () => void;
   actions?: React.ReactNode;
   unreadChat?: number;
+  unreadMeetings?: number;
 }
 
 /** Mobile/top header — shows the hamburger on small screens plus page title. */
-export function TopNav({ title, user, onMenuClick, actions, unreadChat = 0 }: TopNavProps) {
+export function TopNav({
+  title,
+  user,
+  onMenuClick,
+  actions,
+  unreadChat = 0,
+  unreadMeetings = 0,
+}: TopNavProps) {
   const pathname = usePathname();
   const heading = title ?? titleForPath(pathname);
   return (
@@ -28,7 +36,7 @@ export function TopNav({ title, user, onMenuClick, actions, unreadChat = 0 }: To
           className="relative rounded-lg p-2 text-dark-base transition-colors hover:bg-gray-100 lg:hidden"
         >
           <Menu className="h-5 w-5" />
-          {unreadChat > 0 && (
+          {unreadChat + unreadMeetings > 0 && (
             <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
           )}
         </button>

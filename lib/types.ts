@@ -53,6 +53,19 @@ export interface Evaluation {
   updated_at: string;
 }
 
+export interface Meeting {
+  id: string;
+  host_id: string;
+  title: string;
+  description: string | null;
+  meeting_link: string | null;
+  access_username: string | null;
+  access_password: string | null;
+  scheduled_at: string;
+  department: string | null;
+  created_at: string;
+}
+
 export interface EvaluationEvent {
   id: string;
   evaluator_id: string;

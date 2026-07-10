@@ -15,6 +15,7 @@ export interface SidebarProps {
   onNavigate?: () => void;
   onSignOut?: () => void;
   unreadChat?: number;
+  unreadMeetings?: number;
   className?: string;
 }
 
@@ -25,6 +26,7 @@ export function Sidebar({
   onNavigate,
   onSignOut,
   unreadChat = 0,
+  unreadMeetings = 0,
   className,
 }: SidebarProps) {
   const pathname = usePathname();
@@ -54,8 +56,16 @@ export function Sidebar({
       <nav className="flex-1 space-y-1 px-3 py-2">
         {items.map((item) => {
           const active = isActive(item.href);
-          const showBadge =
-            role !== "admin" && item.href.endsWith("/chat") && unreadChat > 0;
+          const isChat = item.href.endsWith("/chat");
+          const isMeetings = item.href.endsWith("/meetings");
+          const badgeCount = isChat
+            ? role !== "admin"
+              ? unreadChat
+              : 0
+            : isMeetings
+              ? unreadMeetings
+              : 0;
+          const showBadge = badgeCount > 0;
           return (
             <Link
               key={item.href}
@@ -72,7 +82,7 @@ export function Sidebar({
               <span className="flex-1">{item.label}</span>
               {showBadge && (
                 <span className="inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1.5 text-[11px] font-bold text-white">
-                  {unreadChat > 99 ? "99+" : unreadChat}
+                  {badgeCount > 99 ? "99+" : badgeCount}
                 </span>
               )}
             </Link>

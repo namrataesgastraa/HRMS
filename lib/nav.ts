@@ -7,6 +7,7 @@ import {
   CalendarCheck,
   UsersRound,
   Gauge,
+  Video,
   type LucideIcon,
 } from "lucide-react";
 import type { UserRole } from "./constants";
@@ -22,6 +23,7 @@ const employeeNav: NavItem[] = [
   { label: "Attendance", href: "/attendance", icon: MapPin },
   { label: "Tasks", href: "/tasks", icon: ListTodo },
   { label: "Chat", href: "/chat", icon: MessagesSquare },
+  { label: "Meetings", href: "/meetings", icon: Video },
 ];
 
 const managerNav: NavItem[] = [
@@ -31,6 +33,7 @@ const managerNav: NavItem[] = [
   { label: "Tasks", href: "/tasks", icon: ListTodo },
   { label: "Evaluation", href: "/evaluation", icon: Gauge },
   { label: "Chat", href: "/chat", icon: MessagesSquare },
+  { label: "Meetings", href: "/meetings", icon: Video },
 ];
 
 const adminNav: NavItem[] = [
@@ -40,6 +43,7 @@ const adminNav: NavItem[] = [
   { label: "Tasks", href: "/admin/tasks", icon: ListTodo },
   { label: "Evaluation", href: "/admin/evaluation", icon: Gauge },
   { label: "Chat", href: "/admin/chat", icon: MessagesSquare },
+  { label: "Meetings", href: "/admin/meetings", icon: Video },
 ];
 
 export function navForRole(role: UserRole): NavItem[] {
