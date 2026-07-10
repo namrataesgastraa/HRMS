@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabaseClient";
 import { useCurrentUser } from "@/components/providers/CurrentUserProvider";
 import { ProfileEditForm } from "@/components/profile/ProfileEditForm";
 import { EmployeeDocuments } from "@/components/profile/EmployeeDocuments";
+import { ChangePassword } from "@/components/profile/ChangePassword";
 import { SkeletonCard } from "@/components/ui/LoadingSkeleton";
 import type { StoredFile } from "@/lib/types";
 
@@ -56,6 +57,7 @@ export default function ProfilePage() {
           <EmployeeDocuments
             documents={(details?.documents ?? []) as StoredFile[]}
           />
+          <ChangePassword />
         </>
       )}
     </div>
