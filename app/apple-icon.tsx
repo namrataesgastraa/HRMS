@@ -5,9 +5,9 @@ import { join } from "node:path";
 export const size = { width: 180, height: 180 };
 export const contentType = "image/png";
 
-// iOS home-screen icon — the ESG Astraa logo on white (Apple rounds corners).
+// iOS home-screen icon — the butterfly mark on white (Apple rounds corners).
 export default function AppleIcon() {
-  const logo = readFileSync(join(process.cwd(), "public/logo.png"));
+  const logo = readFileSync(join(process.cwd(), "public/icon-mark.png"));
   const src = `data:image/png;base64,${logo.toString("base64")}`;
   return new ImageResponse(
     (
@@ -19,11 +19,11 @@ export default function AppleIcon() {
           alignItems: "center",
           justifyContent: "center",
           background: "#ffffff",
-          padding: 16,
+          padding: 22,
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} width={148} style={{ objectFit: "contain" }} alt="ESG Astraa" />
+        <img src={src} height={130} style={{ objectFit: "contain" }} alt="ESG Astraa" />
       </div>
     ),
     { ...size },

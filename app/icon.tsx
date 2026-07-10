@@ -5,9 +5,9 @@ import { join } from "node:path";
 export const size = { width: 512, height: 512 };
 export const contentType = "image/png";
 
-// App icon (favicon + PWA) — the ESG Astraa logo on a clean white square.
+// App icon (favicon + PWA) — the ESG Astraa butterfly mark on a white square.
 export default function Icon() {
-  const logo = readFileSync(join(process.cwd(), "public/logo.png"));
+  const logo = readFileSync(join(process.cwd(), "public/icon-mark.png"));
   const src = `data:image/png;base64,${logo.toString("base64")}`;
   return new ImageResponse(
     (
@@ -19,11 +19,11 @@ export default function Icon() {
           alignItems: "center",
           justifyContent: "center",
           background: "#ffffff",
-          padding: 44,
+          padding: 56,
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={src} width={420} style={{ objectFit: "contain" }} alt="ESG Astraa" />
+        <img src={src} height={384} style={{ objectFit: "contain" }} alt="ESG Astraa" />
       </div>
     ),
     { ...size },
