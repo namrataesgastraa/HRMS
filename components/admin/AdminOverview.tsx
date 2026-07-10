@@ -52,7 +52,8 @@ export function AdminOverview() {
           .gte("submitted_at", dayStart),
         supabase
           .from("messages")
-          .select("id, content, created_at, sender:profiles(full_name)")
+          .select("id, content, created_at, sender:profiles!messages_sender_id_fkey(full_name)")
+          .is("recipient_id", null)
           .order("created_at", { ascending: false })
           .limit(5),
       ]);

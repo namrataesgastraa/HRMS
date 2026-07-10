@@ -86,7 +86,6 @@ export function ChatClient({ uid, userName, canChat, userAvatar, department }: P
   const [files, setFiles] = useState<File[]>([]);
   const [sending, setSending] = useState(false);
   const [showEmoji, setShowEmoji] = useState(false);
-  const [needsMigration, setNeedsMigration] = useState(false);
   // Per-peer "last read" timestamps (ms) → drives DM unread badges.
   const readKey = `chat-lastread-${uid}`;
   const [lastRead, setLastRead] = useState<Record<string, number>>(() => {
@@ -115,33 +114,19 @@ export function ChatClient({ uid, userName, canChat, userAvatar, department }: P
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Initial load: everything RLS lets me see (global + my dept + my DMs).
-  // Falls back to base columns if migration 0011 (recipient_id/attachments)
-  // hasn't been applied yet — so existing global/department chat never vanishes.
+  // NOTE: messages has two FKs to profiles (sender_id, recipient_id), so the
+  // sender embed MUST hint the sender_id FK or the join is ambiguous and fails.
   useEffect(() => {
     let active = true;
     (async () => {
-      const FULL =
-        "id, content, created_at, sender_id, recipient_id, department, attachments, sender:profiles(full_name, avatar_url)";
-      const BASE =
-        "id, content, created_at, sender_id, department, sender:profiles(full_name, avatar_url)";
-      let data: unknown[] | null = null;
-      const full = await supabase
+      const { data, error } = await supabase
         .from("messages")
-        .select(FULL)
+        .select(
+          "id, content, created_at, sender_id, recipient_id, department, attachments, sender:profiles!messages_sender_id_fkey(full_name, avatar_url)",
+        )
         .order("created_at", { ascending: true })
         .limit(2000);
-      if (full.error) {
-        // Most likely: recipient_id/attachments columns don't exist yet.
-        if (active) setNeedsMigration(true);
-        const base = await supabase
-          .from("messages")
-          .select(BASE)
-          .order("created_at", { ascending: true })
-          .limit(2000);
-        data = base.data;
-      } else {
-        data = full.data;
-      }
+      if (error) console.error("chat load failed:", error.message);
       if (!active) return;
       const rows = ((data ?? []) as unknown as Array<
         Partial<Omit<ChatMessage, "senderName" | "senderAvatar">> & {
@@ -481,13 +466,6 @@ export function ChatClient({ uid, userName, canChat, userAvatar, department }: P
           </div>
         )}
       </div>
-
-      {needsMigration && (
-        <div className="border-b border-amber-200 bg-amber-50 px-4 py-2 text-xs text-amber-800">
-          Personal chat &amp; attachments need a database update (migration 0011) — ask your
-          administrator to run it. Global &amp; department chat still work.
-        </div>
-      )}
 
       {/* Contact picker for Direct */}
       {showContactPicker ? (
