@@ -43,3 +43,6 @@ next-env.d.ts
 
 .vercel
 .env*
+
+# Internal project notes — keep out of the repo
+CLAUDE.md
