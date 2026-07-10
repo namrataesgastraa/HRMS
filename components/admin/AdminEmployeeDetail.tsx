@@ -15,6 +15,7 @@ import {
   ListTodo,
   User,
   Clock,
+  Pencil,
 } from "lucide-react";
 import { createClient } from "@/lib/supabaseClient";
 import {
@@ -67,6 +68,9 @@ export function AdminEmployeeDetail({
   const { toast } = useToast();
   const [tab, setTab] = useState<Tab>("overview");
   const [assignOpen, setAssignOpen] = useState(false);
+  const [editingId, setEditingId] = useState(false);
+  const [idValue, setIdValue] = useState("");
+  const [savingId, setSavingId] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin", "employee", employeeId],
@@ -117,6 +121,35 @@ export function AdminEmployeeDetail({
   async function openFile(bucket: string, file: StoredFile) {
     const ok = await openStoredFile(supabase, bucket, file);
     if (!ok) toast({ title: "Couldn't open file", variant: "error" });
+  }
+
+  async function saveEmployeeId(prof: Profile) {
+    const next = idValue.trim();
+    if (!next || next === prof.employee_id) {
+      setEditingId(false);
+      return;
+    }
+    setSavingId(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ employee_id: next })
+      .eq("id", prof.id);
+    setSavingId(false);
+    if (error) {
+      toast({
+        title: "Couldn't update ID",
+        description: /duplicate|unique/i.test(error.message)
+          ? "That employee ID is already used by someone else."
+          : error.message,
+        variant: "error",
+      });
+      return;
+    }
+    await queryClient.invalidateQueries({
+      queryKey: ["admin", "employee", employeeId],
+    });
+    setEditingId(false);
+    toast({ title: "Employee ID updated", variant: "success" });
   }
 
   async function toggleManager(prof: Profile) {
@@ -221,10 +254,47 @@ export function AdminEmployeeDetail({
             </h1>
             {p.role === "admin" && <Badge variant="info">admin</Badge>}
           </div>
-          <p className="text-sm text-gray-500">
-            {p.employee_id} · {details?.designation ?? "—"} ·{" "}
-            {details?.department ?? "—"}
-          </p>
+          {isAdminScope && editingId ? (
+            <div className="mt-1 flex items-center gap-2">
+              <input
+                value={idValue}
+                onChange={(e) => setIdValue(e.target.value)}
+                placeholder="e.g. ESGA-0001"
+                className="h-9 w-40 rounded-lg border border-gray-200 px-2.5 text-sm focus:border-electric-violet focus:outline-none focus:ring-2 focus:ring-electric-violet/30"
+                autoFocus
+              />
+              <Button size="sm" loading={savingId} onClick={() => saveEmployeeId(p)}>
+                Save
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setEditingId(false)}
+                disabled={savingId}
+              >
+                Cancel
+              </Button>
+            </div>
+          ) : (
+            <p className="flex items-center gap-1.5 text-sm text-gray-500">
+              <span>
+                {p.employee_id ?? "—"} · {details?.designation ?? "—"} ·{" "}
+                {details?.department ?? "—"}
+              </span>
+              {isAdminScope && (
+                <button
+                  onClick={() => {
+                    setIdValue(p.employee_id ?? "");
+                    setEditingId(true);
+                  }}
+                  className="rounded-md p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-electric-violet"
+                  title="Edit employee ID"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </p>
+          )}
           <div className="mt-2 flex flex-wrap gap-2">
             <Badge variant={p.profile_completed ? "submitted" : "pending"}>
               {p.profile_completed ? "Onboarded" : "Pending"}
