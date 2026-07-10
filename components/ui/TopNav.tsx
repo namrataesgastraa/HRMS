@@ -1,6 +1,7 @@
 "use client";
 
 import { Menu } from "lucide-react";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Avatar } from "./Avatar";
 import { NotificationBell } from "./NotificationBell";
@@ -31,7 +32,13 @@ export function TopNav({ title, user, onMenuClick, actions }: TopNavProps) {
         <div className="ml-auto flex items-center gap-2">
           {actions}
           <NotificationBell />
-          <Avatar name={user?.name} src={user?.avatarUrl} size="sm" />
+          <Link
+            href="/profile"
+            aria-label="Open my profile"
+            className="rounded-full transition-opacity hover:opacity-80"
+          >
+            <Avatar name={user?.name} src={user?.avatarUrl} size="sm" />
+          </Link>
         </div>
       </div>
     </header>

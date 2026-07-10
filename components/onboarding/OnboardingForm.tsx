@@ -286,6 +286,8 @@ export function OnboardingForm({
             <Input
               label="Phone"
               required
+              type="tel"
+              inputMode="numeric"
               placeholder="+91 ..."
               error={errors.phone?.message}
               {...register("phone")}
@@ -427,8 +429,7 @@ export function OnboardingForm({
                   </span>
                   <input
                     type="file"
-                    accept="image/*"
-                    capture="user"
+                    accept="image/png,image/jpeg,image/jpg,image/webp"
                     className="hidden"
                     onChange={(e) => setPhoto(e.target.files?.[0] ?? null)}
                   />

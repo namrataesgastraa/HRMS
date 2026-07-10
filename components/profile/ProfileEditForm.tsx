@@ -156,8 +156,12 @@ export function ProfileEditForm({
         />
         <Input
           label="Phone"
+          type="tel"
+          inputMode="numeric"
           value={form.phone}
-          onChange={(e) => set("phone", e.target.value)}
+          onChange={(e) =>
+            set("phone", e.target.value.replace(/[^\d+\s-]/g, ""))
+          }
         />
         <Input
           label="Personal email"

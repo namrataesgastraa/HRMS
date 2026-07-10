@@ -12,7 +12,10 @@ export const onboardingSchema = z.object({
   // Personal
   full_name: z.string().min(2, "Enter your full name"),
   dob: z.string().min(1, "Select your date of birth"),
-  phone: z.string().min(7, "Enter a valid phone number"),
+  phone: z
+    .string()
+    .min(7, "Enter a valid phone number")
+    .regex(/^[+\d][\d\s-]{6,19}$/, "Digits only (you may start with +)"),
   personal_email: z
     .string()
     .optional()
