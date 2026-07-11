@@ -35,8 +35,9 @@ mkdir -p "$OUT/csv"
 for t in \
   profiles employee_details attendance office_locations \
   task_plans thirty_day_plans daily_task_logs assigned_tasks \
-  admin_comments messages notifications \
-  evaluations evaluation_events meetings meeting_attendees; do
+  admin_comments messages notifications profile_audit_log \
+  evaluations evaluation_events meetings meeting_attendees \
+  leave_requests; do
   if "$PSQL" "$SUPABASE_DB_URL" -v ON_ERROR_STOP=1 \
       -c "\copy (select * from public.$t) to '$OUT/csv/$t.csv' with csv header" 2>/dev/null; then
     rows=$(($(wc -l < "$OUT/csv/$t.csv") - 1))
