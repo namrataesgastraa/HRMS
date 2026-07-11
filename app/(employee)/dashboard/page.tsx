@@ -7,6 +7,7 @@ import {
   MessagesSquare,
   UsersRound,
   Gauge,
+  CalendarDays,
   ChevronRight,
 } from "lucide-react";
 import { useCurrentUser } from "@/components/providers/CurrentUserProvider";
@@ -16,6 +17,7 @@ import { Card } from "@/components/ui";
 const QUICK_LINKS = [
   { href: "/attendance", label: "Attendance", desc: "Check in / out", icon: MapPin },
   { href: "/tasks", label: "Tasks", desc: "Log daily proof", icon: ListTodo },
+  { href: "/leave", label: "Request leave", desc: "Apply for time off", icon: CalendarDays },
   { href: "/chat", label: "Team chat", desc: "Message the team", icon: MessagesSquare },
 ];
 

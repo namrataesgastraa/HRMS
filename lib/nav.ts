@@ -8,6 +8,7 @@ import {
   UsersRound,
   Gauge,
   Video,
+  CalendarDays,
   type LucideIcon,
 } from "lucide-react";
 import type { UserRole } from "./constants";
@@ -22,6 +23,7 @@ const employeeNav: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { label: "Attendance", href: "/attendance", icon: MapPin },
   { label: "Tasks", href: "/tasks", icon: ListTodo },
+  { label: "Leave", href: "/leave", icon: CalendarDays },
   { label: "Chat", href: "/chat", icon: MessagesSquare },
   { label: "Meetings", href: "/meetings", icon: Video },
 ];
@@ -31,6 +33,7 @@ const managerNav: NavItem[] = [
   { label: "My Team", href: "/team", icon: UsersRound },
   { label: "Attendance", href: "/attendance", icon: MapPin },
   { label: "Tasks", href: "/tasks", icon: ListTodo },
+  { label: "Leave", href: "/leave", icon: CalendarDays },
   { label: "Evaluation", href: "/evaluation", icon: Gauge },
   { label: "Chat", href: "/chat", icon: MessagesSquare },
   { label: "Meetings", href: "/meetings", icon: Video },
@@ -41,6 +44,7 @@ const adminNav: NavItem[] = [
   { label: "Employees", href: "/admin/employees", icon: Users },
   { label: "Attendance", href: "/admin/attendance", icon: CalendarCheck },
   { label: "Tasks", href: "/admin/tasks", icon: ListTodo },
+  { label: "Leave", href: "/admin/leave", icon: CalendarDays },
   { label: "Evaluation", href: "/admin/evaluation", icon: Gauge },
   { label: "Chat", href: "/admin/chat", icon: MessagesSquare },
   { label: "Meetings", href: "/admin/meetings", icon: Video },

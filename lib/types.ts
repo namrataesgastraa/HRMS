@@ -53,6 +53,23 @@ export interface Evaluation {
   updated_at: string;
 }
 
+export interface LeaveRequest {
+  id: string;
+  profile_id: string;
+  leave_type: string;
+  start_date: string;
+  end_date: string;
+  reason: string | null;
+  to_admin: boolean;
+  to_manager: boolean;
+  department: string | null;
+  status: "pending" | "approved" | "rejected";
+  reviewed_by: string | null;
+  review_note: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+}
+
 export interface Meeting {
   id: string;
   host_id: string;
