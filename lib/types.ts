@@ -39,6 +39,21 @@ export interface TaskEntry {
   is_late: boolean;
   submitted_at: string | null;
   created_at: string;
+  updated_at: string | null;
+  edit_count: number;
+  deleted_at: string | null;
+}
+
+export interface TaskLogHistory {
+  id: string;
+  task_log_id: string;
+  profile_id: string;
+  action: "updated" | "deleted";
+  task_title: string | null;
+  description: string | null;
+  proof_files: StoredFile[] | null;
+  day_number: number | null;
+  snapshot_at: string;
 }
 
 export interface Evaluation {

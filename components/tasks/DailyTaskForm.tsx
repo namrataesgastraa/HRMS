@@ -65,6 +65,7 @@ export function DailyTaskForm({ uid }: { uid: string }) {
         .select("*")
         .eq("profile_id", uid)
         .eq("thirty_day_plan_id", activePlan!.id)
+        .is("deleted_at", null)
         .order("day_number", { ascending: false })
         .order("created_at", { ascending: true });
       if (error) throw error;

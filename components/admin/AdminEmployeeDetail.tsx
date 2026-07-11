@@ -49,6 +49,7 @@ import { Textarea } from "@/components/ui/Textarea";
 import { Spinner } from "@/components/ui/Spinner";
 import { useToast } from "@/components/ui/Toast";
 import { AttendanceAnalytics } from "@/components/attendance/AttendanceAnalytics";
+import { TaskHistoryViewer } from "@/components/tasks/TaskHistoryViewer";
 import { cn } from "@/lib/utils";
 
 type Tab = "overview" | "attendance" | "tasks" | "activity";
@@ -93,6 +94,7 @@ export function AdminEmployeeDetail({
             .from("daily_task_logs")
             .select("*")
             .eq("profile_id", employeeId)
+            .is("deleted_at", null)
             .order("day_number", { ascending: false })
             .order("created_at", { ascending: true }),
           supabase
@@ -639,7 +641,10 @@ function TasksByDay({
               return (
               <div key={t.id} className="rounded-xl border border-gray-100 bg-gray-50/60 p-3">
                 <div className="flex items-start justify-between gap-3">
-                  <p className="text-sm font-semibold text-dark-base">{t.task_title}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-dark-base">{t.task_title}</p>
+                    <TaskHistoryViewer taskLogId={t.id} editCount={t.edit_count} />
+                  </div>
                   {ts && (
                     <span className="inline-flex shrink-0 items-center gap-1 text-xs text-gray-400">
                       <Clock className="h-3 w-3" />

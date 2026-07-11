@@ -197,6 +197,7 @@ function SubjectEvaluation({
         .from("daily_task_logs")
         .select("*")
         .eq("profile_id", subject.id)
+        .is("deleted_at", null)
         .gte("created_at", range.start)
         .lt("created_at", range.end)
         .order("created_at", { ascending: true });

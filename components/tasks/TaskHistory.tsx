@@ -3,15 +3,14 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { ListTodo, Paperclip, Clock } from "lucide-react";
+import { ListTodo } from "lucide-react";
 import { createClient } from "@/lib/supabaseClient";
-import { openStoredFile } from "@/lib/storage";
-import { STORAGE_BUCKETS } from "@/lib/constants";
 import { monthOptions, yearOptions, monthRange } from "@/lib/dates";
 import type { TaskEntry } from "@/lib/types";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonCard } from "@/components/ui/LoadingSkeleton";
 import { Select } from "@/components/ui/Select";
+import { EditableTaskCard } from "./EditableTaskCard";
 
 export function TaskHistory({ uid }: { uid: string }) {
   const supabase = useMemo(() => createClient(), []);
@@ -27,6 +26,7 @@ export function TaskHistory({ uid }: { uid: string }) {
         .from("daily_task_logs")
         .select("*")
         .eq("profile_id", uid)
+        .is("deleted_at", null)
         .gte("created_at", start)
         .lt("created_at", end)
         .order("day_number", { ascending: false })
@@ -111,53 +111,9 @@ export function TaskHistory({ uid }: { uid: string }) {
             </p>
           </div>
           <div className="space-y-3">
-            {tasks.map((t) => {
-              const ts = t.submitted_at ?? t.created_at;
-              return (
-              <div
-                key={t.id}
-                className="rounded-xl border border-gray-100 bg-gray-50/60 p-3"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <p className="text-sm font-semibold text-dark-base">
-                    {t.task_title}
-                  </p>
-                  {ts && (
-                    <span className="inline-flex shrink-0 items-center gap-1 text-xs text-gray-400">
-                      <Clock className="h-3 w-3" />
-                      {format(new Date(ts), "dd MMM · hh:mm a")}
-                      {t.is_late && (
-                        <span className="ml-1 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold text-amber-700">
-                          Late
-                        </span>
-                      )}
-                    </span>
-                  )}
-                </div>
-                {t.description && (
-                  <p className="mt-0.5 text-sm text-gray-600">{t.description}</p>
-                )}
-                {t.proof_files && t.proof_files.length > 0 && (
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {t.proof_files.map((f, i) => (
-                      <button
-                        key={i}
-                        onClick={() =>
-                          openStoredFile(supabase, STORAGE_BUCKETS.proofOfWork, f)
-                        }
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 bg-white px-2.5 py-1 text-xs font-medium hover:bg-gray-50"
-                      >
-                        <Paperclip className="h-3.5 w-3.5" />
-                        <span className="max-w-[140px] truncate">
-                          {f.filename}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-              );
-            })}
+            {tasks.map((t) => (
+              <EditableTaskCard key={t.id} task={t} uid={uid} />
+            ))}
           </div>
         </div>
         );

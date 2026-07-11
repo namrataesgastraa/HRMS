@@ -18,6 +18,7 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonCard } from "@/components/ui/LoadingSkeleton";
 import { Select } from "@/components/ui/Select";
 import { useToast } from "@/components/ui/Toast";
+import { TaskHistoryViewer } from "@/components/tasks/TaskHistoryViewer";
 import { cn } from "@/lib/utils";
 
 interface JoinedProfile {
@@ -38,6 +39,7 @@ interface LogRow {
   day_number: number;
   proof_files: StoredFile[] | null;
   submitted_at: string | null;
+  edit_count: number | null;
   plan: { plan_number: number } | { plan_number: number }[] | null;
   profile: JoinedProfile | JoinedProfile[] | null;
   comments: Comment[] | null;
@@ -104,8 +106,9 @@ function DailyLogs({
       const { data, error } = await supabase
         .from("daily_task_logs")
         .select(
-          "id, profile_id, task_title, description, day_number, proof_files, submitted_at, plan:thirty_day_plans(plan_number), profile:profiles(full_name, employee_id, avatar_url), comments:admin_comments(id, comment, created_at)",
+          "id, profile_id, task_title, description, day_number, proof_files, submitted_at, edit_count, plan:thirty_day_plans(plan_number), profile:profiles(full_name, employee_id, avatar_url), comments:admin_comments(id, comment, created_at)",
         )
+        .is("deleted_at", null)
         .gte("created_at", start)
         .lt("created_at", end)
         .order("submitted_at", { ascending: false })
@@ -234,9 +237,10 @@ function LogCard({
         </Badge>
       </div>
 
-      <p className="mt-3 text-sm font-semibold text-dark-base">
-        {log.task_title}
-      </p>
+      <div className="mt-3 flex items-center gap-2">
+        <p className="text-sm font-semibold text-dark-base">{log.task_title}</p>
+        <TaskHistoryViewer taskLogId={log.id} editCount={log.edit_count ?? 0} />
+      </div>
       {log.description && (
         <p className="mt-1 rounded-xl bg-gray-50 p-3 text-sm text-gray-700">
           {log.description}
