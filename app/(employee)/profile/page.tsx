@@ -5,10 +5,9 @@ import { useQuery } from "@tanstack/react-query";
 import { createClient } from "@/lib/supabaseClient";
 import { useCurrentUser } from "@/components/providers/CurrentUserProvider";
 import { ProfileEditForm } from "@/components/profile/ProfileEditForm";
-import { EmployeeDocuments } from "@/components/profile/EmployeeDocuments";
 import { ChangePassword } from "@/components/profile/ChangePassword";
 import { SkeletonCard } from "@/components/ui/LoadingSkeleton";
-import type { StoredFile } from "@/lib/types";
+import type { StoredFile, EducationEntry } from "@/lib/types";
 
 export default function ProfilePage() {
   const { id, fullName, avatarUrl } = useCurrentUser();
@@ -45,17 +44,18 @@ export default function ProfilePage() {
             initial={{
               full_name: fullName ?? "",
               avatar_url: avatarUrl,
+              dob: details?.dob ?? "",
               phone: details?.phone ?? "",
               personal_email: details?.personal_email ?? "",
               address: details?.address ?? "",
               emergency_contact: details?.emergency_contact ?? "",
               designation: details?.designation ?? "",
               department: details?.department ?? "",
+              joining_date: details?.joining_date ?? "",
               reporting_manager: details?.reporting_manager ?? "",
+              education: (details?.education ?? []) as EducationEntry[],
+              documents: (details?.documents ?? []) as StoredFile[],
             }}
-          />
-          <EmployeeDocuments
-            documents={(details?.documents ?? []) as StoredFile[]}
           />
           <ChangePassword />
         </>
