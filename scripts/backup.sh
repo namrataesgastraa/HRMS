@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # ESG Astraa HRMS — backup: Postgres dump + storage buckets.
-# Always produces files under ./backup (uploaded as a GitHub artifact by the
-# workflow). Also pushes to Google Drive IF a 'gdrive' rclone remote is set up.
+# DB dump + CSVs are small point-in-time snapshots (kept dated, with retention).
+# Storage FILES are backed up INCREMENTALLY — only new/changed files transfer,
+# nothing is re-uploaded daily (see step 3). Produces files under ./backup
+# (GitHub artifact) and pushes to Google Drive IF a 'gdrive' rclone remote is set.
 # All credentials come from environment variables (GitHub Secrets).
 set -euo pipefail
 
@@ -47,8 +49,19 @@ for t in \
   fi
 done
 
+# Is Google Drive configured?
+GDRIVE_ON=false
+if rclone listremotes 2>/dev/null | grep -q '^gdrive:'; then GDRIVE_ON=true; fi
+DEST="${GDRIVE_DEST:-gdrive:HRMS-Backups}"
+
+# ---- Storage buckets (files) ----
+# INCREMENTAL: `rclone copy` compares each file against the destination and only
+# transfers NEW or CHANGED files — existing files are never re-uploaded, and
+# deleted files are retained (copy never deletes). When Drive is available we
+# mirror straight into ONE persistent folder ($DEST/storage) so nothing is
+# re-copied daily. Without Drive we fall back to a local copy for the artifact.
 if [ -n "${SUPABASE_S3_ENDPOINT:-}" ]; then
-  echo "== 3/4 Backing up storage buckets (files) =="
+  echo "== 3/4 Backing up storage buckets (incremental — new/changed files only) =="
   export RCLONE_CONFIG_SB_TYPE=s3
   export RCLONE_CONFIG_SB_PROVIDER=Other
   export RCLONE_CONFIG_SB_ENDPOINT="$SUPABASE_S3_ENDPOINT"
@@ -56,19 +69,27 @@ if [ -n "${SUPABASE_S3_ENDPOINT:-}" ]; then
   export RCLONE_CONFIG_SB_ACCESS_KEY_ID="$SUPABASE_S3_KEY"
   export RCLONE_CONFIG_SB_SECRET_ACCESS_KEY="$SUPABASE_S3_SECRET"
   for b in employee-documents proof-of-work avatars task-attachments chat-files; do
-    echo "   - $b"
-    rclone copy "SB:$b" "$OUT/storage/$b/" --transfers 8 || echo "     (skipped $b)"
+    if $GDRIVE_ON; then
+      echo "   - $b → $DEST/storage/$b (only new files transfer)"
+      rclone copy "SB:$b" "$DEST/storage/$b/" --transfers 8 || echo "     (skipped $b)"
+    else
+      echo "   - $b (local copy for artifact)"
+      rclone copy "SB:$b" "$OUT/storage/$b/" --transfers 8 || echo "     (skipped $b)"
+    fi
   done
 else
   echo "== 3/4 Storage backup skipped (SUPABASE_S3_* not set) =="
 fi
 
+# ---- Google Drive: DB dump + CSVs (small, dated point-in-time snapshots) ----
+# Only the tiny DB dump + CSVs are versioned per run; the large storage files
+# live in the persistent mirror above (not re-uploaded each day).
 echo "== 4/4 Google Drive =="
-if rclone listremotes 2>/dev/null | grep -q '^gdrive:'; then
-  DEST="${GDRIVE_DEST:-gdrive:HRMS-Backups}"
-  echo "   uploading to $DEST/$STAMP"
-  rclone copy "$OUT" "$DEST/$STAMP/"
-  rclone delete "$DEST" --min-age "${RETAIN_DAYS:-30}d" --rmdirs || true
+if $GDRIVE_ON; then
+  echo "   uploading DB dump + CSVs → $DEST/db/$STAMP"
+  rclone copy "$OUT" "$DEST/db/$STAMP/"
+  # Retention applies ONLY to dated DB snapshots — never to the storage mirror.
+  rclone delete "$DEST/db" --min-age "${RETAIN_DAYS:-30}d" --rmdirs || true
 else
   echo "   gdrive remote not configured — backup kept as GitHub artifact only."
 fi
