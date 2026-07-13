@@ -96,7 +96,8 @@ export async function getCurrentPosition(): Promise<GeoPosition> {
       }
       const pos = await Geolocation.getCurrentPosition({
         enableHighAccuracy: true,
-        timeout: 10_000,
+        timeout: 20_000,
+        maximumAge: 0,
       });
       // Some Android builds expose a mock/simulated flag on coords.
       const coords = pos.coords as typeof pos.coords & {
@@ -119,21 +120,67 @@ export async function getCurrentPosition(): Promise<GeoPosition> {
   }
 
   // --- Web fallback ---
+  // A single getCurrentPosition() on iOS/Safari frequently returns a CACHED,
+  // low-accuracy fix (e.g. your last location) and never waits for the real GPS
+  // lock — so "refresh" appears stuck. Instead we watchPosition() and keep the
+  // best reading, resolving early once the fix is accurate (<= 60 m) or after a
+  // window, so we get a fresh, precise position.
   return new Promise<GeoPosition>((resolve, reject) => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       reject(new Error("Geolocation is not supported on this device."));
       return;
     }
-    navigator.geolocation.getCurrentPosition(
-      (p) =>
-        resolve({
+
+    const GOOD_ACCURACY_M = 60;
+    const MAX_WAIT_MS = 20_000;
+    let best: GeoPosition | null = null;
+    let watchId: number | null = null;
+
+    const cleanup = () => {
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+      clearTimeout(timer);
+    };
+    const timer = setTimeout(() => {
+      cleanup();
+      if (best) resolve(best);
+      else
+        reject(
+          new Error(
+            "Couldn't get an accurate location. Move near a window/outdoors and try again.",
+          ),
+        );
+    }, MAX_WAIT_MS);
+
+    watchId = navigator.geolocation.watchPosition(
+      (p) => {
+        const acc = p.coords.accuracy ?? Number.POSITIVE_INFINITY;
+        const reading: GeoPosition = {
           latitude: p.coords.latitude,
           longitude: p.coords.longitude,
           accuracy: p.coords.accuracy ?? null,
           isMock: false, // browser API cannot report mock providers
-        }),
-      (err) => reject(new Error(err.message || "Unable to get your location.")),
-      { enableHighAccuracy: true, timeout: 10_000, maximumAge: 0 },
+        };
+        // Keep the most accurate reading seen so far.
+        if (!best || acc < (best.accuracy ?? Number.POSITIVE_INFINITY)) {
+          best = reading;
+        }
+        // Accurate enough → done.
+        if (acc <= GOOD_ACCURACY_M) {
+          cleanup();
+          resolve(best);
+        }
+      },
+      (err) => {
+        // If we already have any fix, use it; otherwise surface the error.
+        if (best) {
+          cleanup();
+          resolve(best);
+        } else {
+          cleanup();
+          reject(new Error(err.message || "Unable to get your location."));
+        }
+      },
+      { enableHighAccuracy: true, timeout: MAX_WAIT_MS, maximumAge: 0 },
     );
   });
 }
