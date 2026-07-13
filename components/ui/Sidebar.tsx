@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { LogOut, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { navForRole } from "@/lib/nav";
+import { navForRole, EXTERNAL_APPS } from "@/lib/nav";
 import type { UserRole } from "@/lib/constants";
 import { Avatar } from "./Avatar";
 import { Logo } from "./Logo";
@@ -88,6 +88,27 @@ export function Sidebar({
             </Link>
           );
         })}
+
+        {/* External apps — open in a new tab */}
+        <div className="mt-3 border-t border-white/10 pt-3">
+          <p className="px-3 pb-1 text-[10px] uppercase tracking-wide text-white/30">
+            Apps
+          </p>
+          {EXTERNAL_APPS.map((app) => (
+            <a
+              key={app.href}
+              href={app.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={onNavigate}
+              className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/60 transition-colors hover:bg-white/5 hover:text-white"
+            >
+              <app.icon className="h-[18px] w-[18px]" />
+              <span className="flex-1">{app.label}</span>
+              <ExternalLink className="h-3.5 w-3.5 text-white/30" />
+            </a>
+          ))}
+        </div>
       </nav>
 
       {/* User footer */}

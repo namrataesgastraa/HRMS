@@ -9,6 +9,8 @@ import {
   Gauge,
   Video,
   CalendarDays,
+  Mail,
+  MonitorPlay,
   type LucideIcon,
 } from "lucide-react";
 import type { UserRole } from "./constants";
@@ -18,6 +20,12 @@ export interface NavItem {
   href: string;
   icon: LucideIcon;
 }
+
+/** External productivity apps opened in a new tab from the sidebar. */
+export const EXTERNAL_APPS: NavItem[] = [
+  { label: "Outlook", href: "https://outlook.office.com/mail/", icon: Mail },
+  { label: "Microsoft Teams", href: "https://teams.microsoft.com/", icon: MonitorPlay },
+];
 
 const employeeNav: NavItem[] = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
