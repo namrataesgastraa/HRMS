@@ -40,6 +40,7 @@ interface LogRow {
   proof_files: StoredFile[] | null;
   submitted_at: string | null;
   edit_count: number | null;
+  task_kind: string | null;
   plan: { plan_number: number } | { plan_number: number }[] | null;
   profile: JoinedProfile | JoinedProfile[] | null;
   comments: Comment[] | null;
@@ -106,7 +107,7 @@ function DailyLogs({
       const { data, error } = await supabase
         .from("daily_task_logs")
         .select(
-          "id, profile_id, task_title, description, day_number, proof_files, submitted_at, edit_count, plan:thirty_day_plans(plan_number), profile:profiles(full_name, employee_id, avatar_url), comments:admin_comments(id, comment, created_at)",
+          "id, profile_id, task_title, description, day_number, proof_files, submitted_at, edit_count, task_kind, plan:thirty_day_plans(plan_number), profile:profiles(full_name, employee_id, avatar_url), comments:admin_comments(id, comment, created_at)",
         )
         .is("deleted_at", null)
         .gte("created_at", start)
@@ -239,6 +240,11 @@ function LogCard({
 
       <div className="mt-3 flex items-center gap-2">
         <p className="text-sm font-semibold text-dark-base">{log.task_title}</p>
+        {log.task_kind === "extra" && (
+          <span className="rounded-full bg-cool-blue/10 px-2 py-0.5 text-[10px] font-semibold text-cool-blue">
+            Extra
+          </span>
+        )}
         <TaskHistoryViewer taskLogId={log.id} editCount={log.edit_count ?? 0} />
       </div>
       {log.description && (

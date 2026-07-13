@@ -37,6 +37,7 @@ export interface TaskEntry {
   proof_files: StoredFile[] | null;
   attendance_id: string | null;
   is_late: boolean;
+  task_kind: "planned" | "extra";
   submitted_at: string | null;
   created_at: string;
   updated_at: string | null;

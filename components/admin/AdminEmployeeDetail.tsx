@@ -647,11 +647,43 @@ function TasksByDay({
     return [...map.entries()].sort((a, b) => b[0] - a[0]);
   }, [tasks]);
 
+  const planned = tasks.filter((t) => t.task_kind !== "extra").length;
+  const extra = tasks.length - planned;
+  const total = tasks.length;
+
   if (tasks.length === 0)
     return <Section title="Tasks"><p className="text-sm text-gray-400">No tasks logged.</p></Section>;
 
   return (
     <div className="space-y-4">
+      {/* Planned vs Extra breakdown */}
+      <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-card">
+        <p className="mb-3 text-sm font-bold text-dark-base">
+          Planned vs Extra
+          <span className="ml-2 font-normal text-gray-400">{total} tasks</span>
+        </p>
+        <div className="flex h-3 overflow-hidden rounded-full bg-gray-100">
+          <div
+            className="bg-electric-violet transition-all"
+            style={{ width: `${(planned / total) * 100}%` }}
+          />
+          <div
+            className="bg-cool-blue transition-all"
+            style={{ width: `${(extra / total) * 100}%` }}
+          />
+        </div>
+        <div className="mt-2 flex gap-4 text-xs">
+          <span className="inline-flex items-center gap-1.5 font-medium text-dark-base">
+            <span className="h-2.5 w-2.5 rounded-full bg-electric-violet" />
+            Planned: {planned} ({Math.round((planned / total) * 100)}%)
+          </span>
+          <span className="inline-flex items-center gap-1.5 font-medium text-dark-base">
+            <span className="h-2.5 w-2.5 rounded-full bg-cool-blue" />
+            Extra: {extra} ({Math.round((extra / total) * 100)}%)
+          </span>
+        </div>
+      </div>
+
       {byDay.map(([day, dayTasks]) => {
         const when = dayTasks[0].submitted_at ?? dayTasks[0].created_at;
         return (
@@ -677,6 +709,11 @@ function TasksByDay({
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-semibold text-dark-base">{t.task_title}</p>
+                    {t.task_kind === "extra" && (
+                      <span className="rounded-full bg-cool-blue/10 px-2 py-0.5 text-[10px] font-semibold text-cool-blue">
+                        Extra
+                      </span>
+                    )}
                     <TaskHistoryViewer taskLogId={t.id} editCount={t.edit_count} />
                   </div>
                   {ts && (

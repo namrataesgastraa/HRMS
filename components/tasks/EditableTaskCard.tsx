@@ -173,7 +173,14 @@ export function EditableTaskCard({ task, uid }: { task: TaskEntry; uid: string }
     <div className="rounded-xl border border-gray-100 bg-gray-50/60 p-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-dark-base">{task.task_title}</p>
+          <p className="flex items-center gap-2 text-sm font-semibold text-dark-base">
+            {task.task_title}
+            {task.task_kind === "extra" && (
+              <span className="rounded-full bg-cool-blue/10 px-2 py-0.5 text-[10px] font-semibold text-cool-blue">
+                Extra
+              </span>
+            )}
+          </p>
         </div>
         {ts && (
           <span className="inline-flex shrink-0 items-center gap-1 text-xs text-gray-400">

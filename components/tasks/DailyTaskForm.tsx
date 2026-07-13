@@ -26,6 +26,7 @@ import {
   emptyProof,
   type ProofDraft,
 } from "@/components/ui/ProofFilesInput";
+import { cn } from "@/lib/utils";
 
 export function DailyTaskForm({ uid }: { uid: string }) {
   const supabase = useMemo(() => createClient(), []);
@@ -35,6 +36,7 @@ export function DailyTaskForm({ uid }: { uid: string }) {
   const [day, setDay] = useState<number | null>(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [kind, setKind] = useState<"planned" | "extra">("planned");
   const [proof, setProof] = useState<ProofDraft>(emptyProof);
   const [submitting, setSubmitting] = useState(false);
 
@@ -124,6 +126,7 @@ export function DailyTaskForm({ uid }: { uid: string }) {
         description: description.trim() || null,
         proof_files: proofFiles,
         attendance_id: attendanceId,
+        task_kind: kind,
       });
       if (error) throw error;
 
@@ -141,6 +144,7 @@ export function DailyTaskForm({ uid }: { uid: string }) {
       toast({ title: "Task logged 🎉", variant: "success" });
       setTitle("");
       setDescription("");
+      setKind("planned");
       setProof(emptyProof);
     } catch (err) {
       toast({
@@ -209,6 +213,35 @@ export function DailyTaskForm({ uid }: { uid: string }) {
             onChange={(e) => setTitle(e.target.value)}
           />
         </div>
+        {/* Planned vs Extra */}
+        <div className="mt-4">
+          <label className="mb-1 block text-sm font-semibold text-dark-base">
+            Task type
+          </label>
+          <div className="inline-flex rounded-xl border border-gray-200 p-1">
+            {(["planned", "extra"] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setKind(k)}
+                className={cn(
+                  "rounded-lg px-4 py-1.5 text-sm font-semibold capitalize transition-colors",
+                  kind === k
+                    ? "bg-gradient-primary text-white shadow-soft"
+                    : "text-gray-500 hover:text-dark-base",
+                )}
+              >
+                {k}
+              </button>
+            ))}
+          </div>
+          <p className="mt-1 text-xs text-gray-400">
+            {kind === "extra"
+              ? "Extra — work that wasn't in your 90/30-day plan."
+              : "Planned — part of your 90/30-day plan."}
+          </p>
+        </div>
+
         <div className="mt-4">
           <Textarea
             label="Description"
@@ -257,8 +290,13 @@ export function DailyTaskForm({ uid }: { uid: string }) {
                     key={t.id}
                     className="rounded-xl border border-gray-100 bg-gray-50/60 p-3"
                   >
-                    <p className="text-sm font-semibold text-dark-base">
+                    <p className="flex items-center gap-2 text-sm font-semibold text-dark-base">
                       {t.task_title}
+                      {t.task_kind === "extra" && (
+                        <span className="rounded-full bg-cool-blue/10 px-2 py-0.5 text-[10px] font-semibold text-cool-blue">
+                          Extra
+                        </span>
+                      )}
                     </p>
                     {t.description && (
                       <p className="mt-0.5 text-sm text-gray-600">
