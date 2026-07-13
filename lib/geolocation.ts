@@ -96,7 +96,7 @@ export async function getCurrentPosition(): Promise<GeoPosition> {
       }
       const pos = await Geolocation.getCurrentPosition({
         enableHighAccuracy: true,
-        timeout: 20_000,
+        timeout: 8_000,
         maximumAge: 0,
       });
       // Some Android builds expose a mock/simulated flag on coords.
@@ -131,13 +131,16 @@ export async function getCurrentPosition(): Promise<GeoPosition> {
       return;
     }
 
-    const GOOD_ACCURACY_M = 60;
-    const MAX_WAIT_MS = 20_000;
+    const GOOD_ACCURACY_M = 75; // resolve instantly once this good
+    const SETTLE_MS = 2_500; // after the first fix, briefly let it improve
+    const MAX_WAIT_MS = 8_000; // hard cap
     let best: GeoPosition | null = null;
     let watchId: number | null = null;
+    let settleTimer: ReturnType<typeof setTimeout> | null = null;
 
     const cleanup = () => {
       if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+      if (settleTimer) clearTimeout(settleTimer);
       clearTimeout(timer);
     };
     const timer = setTimeout(() => {
@@ -164,10 +167,19 @@ export async function getCurrentPosition(): Promise<GeoPosition> {
         if (!best || acc < (best.accuracy ?? Number.POSITIVE_INFINITY)) {
           best = reading;
         }
-        // Accurate enough → done.
+        // Accurate enough → done immediately.
         if (acc <= GOOD_ACCURACY_M) {
           cleanup();
           resolve(best);
+          return;
+        }
+        // Otherwise, once we have a first fix, give it a short window to sharpen
+        // then return the best — keeps refresh fast without waiting the full cap.
+        if (settleTimer === null) {
+          settleTimer = setTimeout(() => {
+            cleanup();
+            if (best) resolve(best);
+          }, SETTLE_MS);
         }
       },
       (err) => {
