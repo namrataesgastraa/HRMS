@@ -1,4 +1,3 @@
-import { MapPin } from "lucide-react";
 import { formatDistance } from "@/lib/geolocation";
 
 interface Props {
@@ -46,16 +45,12 @@ export function RadiusIndicator({ distanceMeters, radiusMeters, within }: Props)
 }
 
 /** Compact legend row used beside the indicator. */
-export function RadiusLegend({ radiusMeters }: { radiusMeters: number }) {
+export function RadiusLegend() {
   return (
     <div className="space-y-2 text-sm">
       <div className="flex items-center gap-2">
         <span className="h-2.5 w-2.5 rounded-full bg-electric-violet" />
         <span className="text-gray-500">Office</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <MapPin className="h-3.5 w-3.5 text-gray-400" />
-        <span className="text-gray-500">Geofence radius: {radiusMeters} m</span>
       </div>
     </div>
   );

@@ -380,7 +380,7 @@ export function AttendanceClient({ uid }: Props) {
               </div>
             </div>
 
-            <RadiusLegend radiusMeters={nearest.office.radius_meters} />
+            <RadiusLegend />
 
             {position.accuracy != null && (
               <p className="text-xs text-gray-400">
