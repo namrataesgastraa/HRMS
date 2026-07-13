@@ -23,7 +23,7 @@ import {
   uploadPublicFiles,
   linksToStoredFiles,
 } from "@/lib/storage";
-import { STORAGE_BUCKETS } from "@/lib/constants";
+import { STORAGE_BUCKETS, STANDARD_WORK_HOURS } from "@/lib/constants";
 import { notifyEvent } from "@/lib/notify";
 import { Trash2, UsersRound } from "lucide-react";
 import {
@@ -451,6 +451,7 @@ export function AdminEmployeeDetail({
                       ? format(new Date(a.check_out_time), "hh:mm a")
                       : "—"}
                   </span>
+                  <HoursBadge a={a} />
                   <Badge
                     variant={
                       a.status === "late"
@@ -570,6 +571,39 @@ export function AdminEmployeeDetail({
 }
 
 /* ---- helpers -------------------------------------------------------------- */
+/** Worked hours from a check-in/out pair (null if incomplete/invalid). */
+function workedHours(a: AttendanceRecord): number | null {
+  if (!a.check_in_time || !a.check_out_time) return null;
+  const h =
+    (new Date(a.check_out_time).getTime() - new Date(a.check_in_time).getTime()) /
+    3_600_000;
+  return h > 0 && h < 24 ? h : null;
+}
+function hm(h: number): string {
+  const t = Math.round(h * 60);
+  const H = Math.floor(t / 60);
+  const m = t % 60;
+  return H === 0 ? `${m}m` : m === 0 ? `${H}h` : `${H}h ${m}m`;
+}
+
+/** Badge showing hours worked + whether the 9-hour day was completed. */
+function HoursBadge({ a }: { a: AttendanceRecord }) {
+  const wh = workedHours(a);
+  if (wh === null) return <span className="text-[10px] text-gray-300">—</span>;
+  const ok = wh >= STANDARD_WORK_HOURS;
+  return (
+    <span
+      className={cn(
+        "rounded-full px-2 py-0.5 text-[10px] font-semibold",
+        ok ? "bg-success/15 text-success" : "bg-amber-100 text-amber-700",
+      )}
+      title={`${hm(wh)} worked · ${STANDARD_WORK_HOURS}h expected`}
+    >
+      {hm(wh)} {ok ? "✓" : `/ ${STANDARD_WORK_HOURS}h`}
+    </span>
+  );
+}
+
 function Section({
   title,
   children,

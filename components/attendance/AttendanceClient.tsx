@@ -23,6 +23,8 @@ import {
   LATE_THRESHOLD_HOUR,
   CHECK_IN_WINDOW,
   CHECKOUT_WINDOW,
+  CHECKIN_CHAT_MESSAGE,
+  CHECKOUT_CHAT_MESSAGE,
 } from "@/lib/constants";
 import { notifyEvent } from "@/lib/notify";
 import type { OfficeLocation, AttendanceRecord } from "@/lib/types";
@@ -42,6 +44,16 @@ function fmtHour(h: number): string {
   const period = h >= 12 ? "PM" : "AM";
   const hour12 = h % 12 === 0 ? 12 : h % 12;
   return `${hour12}:00 ${period}`;
+}
+
+/** Decimal hours → "8h 5m" / "48m" / "8h". */
+function formatHM(hours: number): string {
+  const totalMin = Math.round(hours * 60);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
 }
 
 export function AttendanceClient({ uid }: Props) {
@@ -142,6 +154,18 @@ export function AttendanceClient({ uid }: Props) {
     withinTimeWindow &&
     !alreadyCheckedIn;
 
+  // Post an automatic message to the GLOBAL chat. Best-effort — never blocks or
+  // fails attendance (e.g. if the user's chat is disabled, the insert is a no-op).
+  async function postChat(content: string) {
+    try {
+      await supabase
+        .from("messages")
+        .insert({ sender_id: uid, content, department: null, recipient_id: null });
+    } catch {
+      /* ignore — attendance already succeeded */
+    }
+  }
+
   async function handleCheckIn() {
     if (!nearest || !position) return;
     setSubmitting(true);
@@ -159,6 +183,7 @@ export function AttendanceClient({ uid }: Props) {
       });
       if (error) throw error;
       await queryClient.invalidateQueries({ queryKey: ["attendance"] });
+      void postChat(CHECKIN_CHAT_MESSAGE);
       notifyEvent({
         kind: "attendance",
         message: `Checked in at ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}${isLate ? " (late)" : ""} · ${Math.round(nearest.distanceMeters)} m from office.`,
@@ -189,12 +214,19 @@ export function AttendanceClient({ uid }: Props) {
         .eq("id", today.id);
       if (error) throw error;
       await queryClient.invalidateQueries({ queryKey: ["attendance"] });
+      void postChat(CHECKOUT_CHAT_MESSAGE);
+      const workedMs = today.check_in_time
+        ? Date.now() - new Date(today.check_in_time).getTime()
+        : 0;
+      const worked = formatHM(workedMs / 3_600_000);
       const early = new Date().getHours() < CHECKOUT_WINDOW.startHour;
       toast({
         title: early ? "Checked out early" : "Checked out. See you tomorrow!",
-        description: early
-          ? `Standard check-out is ${fmtHour(CHECKOUT_WINDOW.startHour)}–${fmtHour(CHECKOUT_WINDOW.endHour)}.`
-          : undefined,
+        description: `You worked ${worked} today.${
+          early
+            ? ` Standard check-out is ${fmtHour(CHECKOUT_WINDOW.startHour)}–${fmtHour(CHECKOUT_WINDOW.endHour)}.`
+            : ""
+        }`,
         variant: "success",
       });
     } catch (err) {
@@ -220,6 +252,7 @@ export function AttendanceClient({ uid }: Props) {
       });
       if (error) throw error;
       await queryClient.invalidateQueries({ queryKey: ["attendance"] });
+      void postChat(CHECKIN_CHAT_MESSAGE);
       notifyEvent({ kind: "attendance", message: "Marked as Working From Home today." });
       toast({
         title: "Marked as working from home",

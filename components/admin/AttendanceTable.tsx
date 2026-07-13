@@ -12,6 +12,37 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { SkeletonRow } from "@/components/ui/LoadingSkeleton";
 import { formatDistance } from "@/lib/geolocation";
 import { monthOptions, yearOptions, monthRange } from "@/lib/dates";
+import { STANDARD_WORK_HOURS } from "@/lib/constants";
+import { cn } from "@/lib/utils";
+
+/** Hours worked + 9-hour completion (admin/manager visibility). */
+function HoursCell({
+  checkIn,
+  checkOut,
+}: {
+  checkIn: string | null;
+  checkOut: string | null;
+}) {
+  if (!checkIn || !checkOut)
+    return <span className="text-xs text-gray-300">—</span>;
+  const h =
+    (new Date(checkOut).getTime() - new Date(checkIn).getTime()) / 3_600_000;
+  if (!(h > 0 && h < 24)) return <span className="text-xs text-gray-300">—</span>;
+  const t = Math.round(h * 60);
+  const label = t < 60 ? `${t}m` : t % 60 === 0 ? `${t / 60}h` : `${Math.floor(t / 60)}h ${t % 60}m`;
+  const ok = h >= STANDARD_WORK_HOURS;
+  return (
+    <span
+      className={cn(
+        "rounded-full px-2 py-0.5 text-xs font-semibold",
+        ok ? "bg-success/15 text-success" : "bg-amber-100 text-amber-700",
+      )}
+      title={`${label} worked · ${STANDARD_WORK_HOURS}h expected`}
+    >
+      {label} {ok ? "✓" : `/ ${STANDARD_WORK_HOURS}h`}
+    </span>
+  );
+}
 
 interface Row {
   id: string;
@@ -139,6 +170,7 @@ export function AttendanceTable() {
                   <th className="px-5 py-3 font-semibold">Employee</th>
                   <th className="px-5 py-3 font-semibold">Date</th>
                   <th className="px-5 py-3 font-semibold">In / Out</th>
+                  <th className="px-5 py-3 font-semibold">Hours</th>
                   <th className="px-5 py-3 font-semibold">Distance</th>
                   <th className="px-5 py-3 font-semibold">Status</th>
                   <th className="px-5 py-3 font-semibold">Flags</th>
@@ -177,6 +209,9 @@ export function AttendanceTable() {
                         {r.check_out_time
                           ? format(new Date(r.check_out_time), "hh:mm a")
                           : "—"}
+                      </td>
+                      <td className="px-5 py-3">
+                        <HoursCell checkIn={r.check_in_time} checkOut={r.check_out_time} />
                       </td>
                       <td
                         className={

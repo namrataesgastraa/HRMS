@@ -28,6 +28,13 @@ export const LATE_THRESHOLD_HOUR = 12;
 /** Standard check-out window (7 PM–8 PM). Check-out before this is "early". */
 export const CHECKOUT_WINDOW = { startHour: 19, endHour: 20 } as const;
 
+/** Expected working hours per day. */
+export const STANDARD_WORK_HOURS = 9;
+
+/** Auto messages posted to global chat on check-in / check-out. */
+export const CHECKIN_CHAT_MESSAGE = "🌅 Good morning everyone — have a good day!";
+export const CHECKOUT_CHAT_MESSAGE = "👋 Bye bye guys, take care!";
+
 /** Supabase Storage bucket names. */
 export const STORAGE_BUCKETS = {
   employeeDocuments: "employee-documents",
