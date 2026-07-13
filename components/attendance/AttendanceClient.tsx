@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { startOfDay } from "date-fns";
+import { startOfDay, format } from "date-fns";
 import {
   MapPin,
   RefreshCw,
@@ -12,6 +12,7 @@ import {
   LogIn,
   CheckCircle2,
   Home,
+  AlertTriangle,
 } from "lucide-react";
 import { createClient } from "@/lib/supabaseClient";
 import {
@@ -56,6 +57,81 @@ function formatHM(hours: number): string {
   return `${h}h ${m}m`;
 }
 
+/**
+ * Prompt to backfill a missed check-out. The employee enters the time they left
+ * on that (past) day; hours for that day are only counted once this is saved.
+ */
+function MissedCheckoutCard({ record }: { record: AttendanceRecord }) {
+  const supabase = useMemo(() => createClient(), []);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const checkIn = record.check_in_time ? new Date(record.check_in_time) : null;
+  const [time, setTime] = useState(
+    `${String(CHECKOUT_WINDOW.startHour).padStart(2, "0")}:00`,
+  );
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    if (!checkIn) return;
+    const [h, m] = time.split(":").map(Number);
+    const out = new Date(checkIn);
+    out.setHours(h, m, 0, 0);
+    if (out <= checkIn) {
+      toast({
+        title: "Check-out must be after check-in",
+        description: `You checked in at ${format(checkIn, "hh:mm a")}.`,
+        variant: "error",
+      });
+      return;
+    }
+    setSaving(true);
+    const { error } = await supabase
+      .from("attendance")
+      .update({ check_out_time: out.toISOString() })
+      .eq("id", record.id);
+    setSaving(false);
+    if (error) {
+      toast({ title: "Couldn't save", description: error.message, variant: "error" });
+      return;
+    }
+    await queryClient.invalidateQueries({ queryKey: ["attendance"] });
+    toast({
+      title: "Check-out time saved",
+      description: "That day's hours are now counted.",
+      variant: "success",
+    });
+  }
+
+  return (
+    <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-card">
+      <div className="flex items-start gap-3">
+        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+        <div className="flex-1">
+          <p className="text-sm font-bold text-dark-base">Missed check-out</p>
+          <p className="mt-0.5 text-xs text-amber-700">
+            {checkIn
+              ? `You checked in on ${format(checkIn, "EEE, dd MMM")} at ${format(checkIn, "hh:mm a")} but never checked out.`
+              : "A previous day has no check-out."}{" "}
+            Enter your check-out time — until then this day&apos;s hours aren&apos;t
+            counted.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              className="h-10 rounded-xl border border-amber-300 bg-white px-3 text-sm focus:border-electric-violet focus:outline-none focus:ring-2 focus:ring-electric-violet/30"
+            />
+            <Button size="sm" loading={saving} onClick={save}>
+              Save check-out
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function AttendanceClient({ uid }: Props) {
   const supabase = useMemo(() => createClient(), []);
   const queryClient = useQueryClient();
@@ -93,6 +169,27 @@ export function AttendanceClient({ uid }: Props) {
         .limit(1);
       if (error) throw error;
       return (data?.[0] as AttendanceRecord) ?? null;
+    },
+  });
+
+  // Prior days where the employee checked in but never checked out — they must
+  // enter the missed check-out time before those days' hours can be counted.
+  const missedQuery = useQuery({
+    queryKey: ["attendance", "missed", uid],
+    queryFn: async (): Promise<AttendanceRecord[]> => {
+      const dayStart = startOfDay(new Date()).toISOString();
+      const { data, error } = await supabase
+        .from("attendance")
+        .select("*")
+        .eq("profile_id", uid)
+        .is("check_out_time", null)
+        .not("check_in_time", "is", null)
+        .neq("status", "absent")
+        .lt("check_in_time", dayStart)
+        .order("check_in_time", { ascending: false })
+        .limit(10);
+      if (error) throw error;
+      return (data ?? []) as AttendanceRecord[];
     },
   });
 
@@ -272,9 +369,15 @@ export function AttendanceClient({ uid }: Props) {
 
   // ---- Render ----
   const loading = locating || officesQuery.isLoading || todayQuery.isLoading;
+  const missed = missedQuery.data ?? [];
 
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-card">
+    <div className="space-y-6">
+      {missed.map((rec) => (
+        <MissedCheckoutCard key={rec.id} record={rec} />
+      ))}
+
+      <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-card">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-bold text-dark-base">Mark attendance</h2>
         <button
@@ -471,6 +574,7 @@ export function AttendanceClient({ uid }: Props) {
           </Button>
         </div>
       )}
+      </div>
     </div>
   );
 }
