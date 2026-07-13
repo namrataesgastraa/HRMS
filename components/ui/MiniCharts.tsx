@@ -20,13 +20,16 @@ export function BarChart({
   max,
   showValues = false,
   unit = "",
+  valueFormat,
 }: {
   data: ChartPoint[];
   max?: number;
   showValues?: boolean;
   unit?: string;
+  valueFormat?: (v: number) => string;
 }) {
   const top = Math.max(1, max ?? 0, ...data.map((d) => d.value));
+  const fmt = (v: number) => (valueFormat ? valueFormat(v) : `${v}${unit}`);
   return (
     <div className="relative">
       {/* gridlines */}
@@ -51,12 +54,12 @@ export function BarChart({
                 <div
                   className="w-full rounded-t-md transition-all duration-500"
                   style={{ height: h, backgroundColor: d.color ?? BRAND }}
-                  title={showValues ? `${d.value}${unit}` : undefined}
+                  title={showValues ? fmt(d.value) : undefined}
                 />
               </div>
               {showValues && (
                 <span className="mt-1 text-[11px] font-semibold text-gray-500">
-                  {d.value > 0 ? `${d.value}${unit}` : ""}
+                  {d.value > 0 ? fmt(d.value) : ""}
                 </span>
               )}
               <span className="mt-0.5 max-w-[60px] truncate text-[10px] text-gray-400">

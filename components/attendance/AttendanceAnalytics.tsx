@@ -29,6 +29,16 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
   absent: { label: "Absent", color: "#EF4444" },
 };
 
+/** Decimal hours → "8h 5m" / "48m" / "8h". */
+function fmtHM(hours: number): string {
+  const totalMin = Math.round(hours * 60);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
+
 /** Hours between two ISO timestamps, or 0. */
 function hoursBetween(a: string | null, b: string | null): number {
   if (!a || !b) return 0;
@@ -199,17 +209,17 @@ export function AttendanceAnalytics({
               </p>
               <span className="inline-flex items-center gap-1 text-xs font-semibold text-electric-violet">
                 <Clock className="h-3.5 w-3.5" />
-                {stats.totalHours.toFixed(1)} h total
+                {fmtHM(stats.totalHours)} total
               </span>
             </div>
             <BarChart
               data={stats.weeks.map((h, i) => ({
                 label: `W${i + 1}`,
-                value: Math.round(h * 10) / 10,
+                value: Math.round(h * 100) / 100,
               }))}
               max={maxWeek}
               showValues
-              unit="h"
+              valueFormat={fmtHM}
             />
             <p className="mt-3 text-xs text-gray-400">
               Hours = check-out − check-in. Standard day ends{" "}
