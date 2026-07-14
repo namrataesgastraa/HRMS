@@ -52,6 +52,11 @@ interface Row {
   distance_meters: number | null;
   is_mock_location: boolean;
   status: string;
+  accuracy_meters: number | null;
+  ip_address: string | null;
+  device_id: string | null;
+  source: string | null;
+  risk_flags: string[] | null;
   profile:
     | { full_name: string | null; employee_id: string | null; avatar_url: string | null }
     | { full_name: string | null; employee_id: string | null; avatar_url: string | null }[]
@@ -78,7 +83,7 @@ export function AttendanceTable() {
       const { data, error } = await supabase
         .from("attendance")
         .select(
-          "id, profile_id, check_in_time, check_out_time, distance_meters, is_mock_location, status, profile:profiles(full_name, employee_id, avatar_url)",
+          "id, profile_id, check_in_time, check_out_time, distance_meters, is_mock_location, status, accuracy_meters, ip_address, device_id, source, risk_flags, profile:profiles(full_name, employee_id, avatar_url)",
         )
         .gte("check_in_time", start)
         .lt("check_in_time", end)
@@ -242,7 +247,20 @@ export function AttendanceTable() {
                         </Badge>
                       </td>
                       <td className="px-5 py-3">
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {(r.risk_flags ?? []).map((f) => (
+                            <span
+                              key={f}
+                              title={`${f.replace(/_/g, " ")} · IP ${r.ip_address ?? "?"} · ±${
+                                r.accuracy_meters != null
+                                  ? Math.round(r.accuracy_meters)
+                                  : "?"
+                              }m · ${r.source ?? "?"}`}
+                              className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-600"
+                            >
+                              {f.replace(/_/g, " ")}
+                            </span>
+                          ))}
                           {wfh && (
                             <span title="Work from home" className="text-cool-blue">
                               <Home className="h-4 w-4" />

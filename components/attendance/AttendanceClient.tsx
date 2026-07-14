@@ -28,6 +28,7 @@ import {
   CHECKOUT_CHAT_MESSAGE,
 } from "@/lib/constants";
 import { notifyEvent } from "@/lib/notify";
+import { postAttendance, getDeviceId, detectSource } from "@/lib/attendance";
 import type { OfficeLocation, AttendanceRecord } from "@/lib/types";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
@@ -62,7 +63,6 @@ function formatHM(hours: number): string {
  * on that (past) day; hours for that day are only counted once this is saved.
  */
 function MissedCheckoutCard({ record }: { record: AttendanceRecord }) {
-  const supabase = useMemo(() => createClient(), []);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const checkIn = record.check_in_time ? new Date(record.check_in_time) : null;
@@ -85,15 +85,22 @@ function MissedCheckoutCard({ record }: { record: AttendanceRecord }) {
       return;
     }
     setSaving(true);
-    const { error } = await supabase
-      .from("attendance")
-      .update({ check_out_time: out.toISOString() })
-      .eq("id", record.id);
-    setSaving(false);
-    if (error) {
-      toast({ title: "Couldn't save", description: error.message, variant: "error" });
+    try {
+      await postAttendance({
+        action: "check-out",
+        attendanceId: record.id,
+        checkOutAt: out.toISOString(),
+      });
+    } catch (err) {
+      setSaving(false);
+      toast({
+        title: "Couldn't save",
+        description: err instanceof Error ? err.message : "Please try again.",
+        variant: "error",
+      });
       return;
     }
+    setSaving(false);
     await queryClient.invalidateQueries({ queryKey: ["attendance"] });
     toast({
       title: "Check-out time saved",
@@ -268,17 +275,17 @@ export function AttendanceClient({ uid }: Props) {
     setSubmitting(true);
     try {
       const isLate = new Date().getHours() >= LATE_THRESHOLD_HOUR;
-      const { error } = await supabase.from("attendance").insert({
-        profile_id: uid,
-        office_id: nearest.office.id,
-        check_in_time: new Date().toISOString(),
-        check_in_lat: position.latitude,
-        check_in_lng: position.longitude,
-        distance_meters: Math.round(nearest.distanceMeters),
-        is_mock_location: position.isMock,
-        status: isLate ? "late" : "present",
+      // The SERVER re-computes the distance from the office and rejects anything
+      // outside the geofence — the client's own math is never trusted.
+      await postAttendance({
+        action: "check-in",
+        latitude: position.latitude,
+        longitude: position.longitude,
+        accuracy: position.accuracy,
+        isMock: position.isMock,
+        deviceId: getDeviceId(),
+        source: await detectSource(),
       });
-      if (error) throw error;
       await queryClient.invalidateQueries({ queryKey: ["attendance"] });
       void postChat(CHECKIN_CHAT_MESSAGE);
       notifyEvent({
@@ -305,11 +312,7 @@ export function AttendanceClient({ uid }: Props) {
     if (!today) return;
     setSubmitting(true);
     try {
-      const { error } = await supabase
-        .from("attendance")
-        .update({ check_out_time: new Date().toISOString() })
-        .eq("id", today.id);
-      if (error) throw error;
+      await postAttendance({ action: "check-out", attendanceId: today.id });
       await queryClient.invalidateQueries({ queryKey: ["attendance"] });
       void postChat(CHECKOUT_CHAT_MESSAGE);
       const workedMs = today.check_in_time
@@ -341,13 +344,11 @@ export function AttendanceClient({ uid }: Props) {
   async function handleWfh() {
     setSubmitting(true);
     try {
-      const { error } = await supabase.from("attendance").insert({
-        profile_id: uid,
-        check_in_time: new Date().toISOString(),
-        status: "wfh",
-        is_mock_location: false,
+      await postAttendance({
+        action: "wfh",
+        deviceId: getDeviceId(),
+        source: await detectSource(),
       });
-      if (error) throw error;
       await queryClient.invalidateQueries({ queryKey: ["attendance"] });
       void postChat(CHECKIN_CHAT_MESSAGE);
       notifyEvent({ kind: "attendance", message: "Marked as Working From Home today." });
