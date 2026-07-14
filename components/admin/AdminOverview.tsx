@@ -43,7 +43,8 @@ export function AdminOverview() {
     queryFn: async (): Promise<Overview> => {
       const dayStart = startOfDay(new Date()).toISOString();
       const [emps, att, logs, msgs] = await Promise.all([
-        supabase.from("profiles").select("id").eq("role", "employee"),
+        // Headcount = everyone who marks attendance (employees + managers).
+        supabase.from("profiles").select("id").neq("role", "admin"),
         supabase
           .from("attendance")
           .select("profile_id, status, is_mock_location, distance_meters")

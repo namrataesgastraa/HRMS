@@ -93,19 +93,19 @@ export function AttendanceTable() {
     },
   });
 
-  // Employee dropdown — all employees (independent of the selected month).
+  // Employee dropdown — EVERYONE who can mark attendance (employees + managers;
+  // filtering by role='employee' previously hid managers from the picker).
   const { data: employees } = useQuery({
     queryKey: ["admin", "employee-options"],
     queryFn: async () => {
       const { data, error } = await supabase
         .from("profiles")
         .select("id, full_name")
-        .eq("role", "employee")
         .order("full_name");
       if (error) throw error;
       return (data ?? []) as { id: string; full_name: string | null }[];
     },
-    staleTime: Infinity,
+    staleTime: 5 * 60_000, // refresh so new joiners appear
   });
 
   const employeeOptions = useMemo(
