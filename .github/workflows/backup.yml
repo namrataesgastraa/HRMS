@@ -1,9 +1,13 @@
 name: Nightly Backup
 
-# Runs every night and can also be triggered manually (Actions tab → Run workflow).
+# ⏸️ PAUSED FOR MAINTENANCE — the nightly schedule is disabled, so NO automatic
+# backups run to GitHub artifacts or Google Drive. The workflow can still be run
+# on demand (Actions tab → Nightly Backup → Run workflow).
+#
+# To resume nightly backups: uncomment the `schedule:` block below.
 on:
-  schedule:
-    - cron: "30 20 * * *" # 20:30 UTC = 02:00 IST
+  # schedule:
+  #   - cron: "30 20 * * *" # 20:30 UTC = 02:00 IST
   workflow_dispatch: {}
 
 jobs:

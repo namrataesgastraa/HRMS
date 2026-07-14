@@ -18,12 +18,24 @@ function getTransport(): Transporter | null {
   return transporter;
 }
 
+/**
+ * MAINTENANCE KILL-SWITCH.
+ * Emails are OFF unless `EMAILS_ENABLED=true` is set in the environment (Vercel).
+ * To re-enable notification emails later: add the env var EMAILS_ENABLED=true
+ * in Vercel → Settings → Environment Variables, then redeploy. No code change.
+ */
+const emailsEnabled = process.env.EMAILS_ENABLED === "true";
+
 /** Send a branded notification email. Fails soft (never throws to the caller). */
 export async function sendMail(
   to: string[],
   subject: string,
   html: string,
 ): Promise<void> {
+  if (!emailsEnabled) {
+    console.log("sendMail SKIPPED (emails disabled for maintenance):", subject);
+    return;
+  }
   const recipients = [...new Set(to.filter(Boolean))];
   if (recipients.length === 0) return;
   const t = getTransport();
