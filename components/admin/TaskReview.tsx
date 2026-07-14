@@ -47,8 +47,19 @@ interface LogRow {
 }
 interface PlanRow {
   id: string;
+  profile_id: string;
   submitted_at: string;
-  plan_content: { milestones?: { week: string; goal: string }[] } | null;
+  plan_content:
+    | { milestones?: { week: string; goal: string }[]; file?: StoredFile }
+    | null;
+  profile: JoinedProfile | JoinedProfile[] | null;
+}
+interface ThirtyRow {
+  id: string;
+  profile_id: string;
+  plan_number: number;
+  content: { file?: StoredFile } | null;
+  created_at: string;
   profile: JoinedProfile | JoinedProfile[] | null;
 }
 
@@ -311,61 +322,152 @@ function LogCard({
   );
 }
 
-/* ---- 90-day plans --------------------------------------------------------- */
+/* ---- Plans: 90-day master + the three 30-day plans, all openable ----------- */
 function Plans({ supabase }: { supabase: SupabaseClient }) {
+  const { toast } = useToast();
+
   const { data, isLoading } = useQuery({
-    queryKey: ["admin", "task_plans"],
-    queryFn: async (): Promise<PlanRow[]> => {
-      const { data, error } = await supabase
-        .from("task_plans")
-        .select(
-          "id, submitted_at, plan_content, profile:profiles(full_name, employee_id)",
-        )
-        .order("submitted_at", { ascending: false })
-        .limit(50);
-      if (error) throw error;
-      return (data ?? []) as unknown as PlanRow[];
+    queryKey: ["admin", "plans"],
+    queryFn: async () => {
+      const [masterRes, thirtyRes] = await Promise.all([
+        supabase
+          .from("task_plans")
+          .select(
+            "id, profile_id, submitted_at, plan_content, profile:profiles(full_name, employee_id)",
+          )
+          .order("submitted_at", { ascending: false }),
+        supabase
+          .from("thirty_day_plans")
+          .select(
+            "id, profile_id, plan_number, content, created_at, profile:profiles(full_name, employee_id)",
+          )
+          .order("plan_number", { ascending: true }),
+      ]);
+      if (masterRes.error) throw masterRes.error;
+      if (thirtyRes.error) throw thirtyRes.error;
+      return {
+        masters: (masterRes.data ?? []) as unknown as PlanRow[],
+        thirties: (thirtyRes.data ?? []) as unknown as ThirtyRow[],
+      };
     },
   });
 
-  if (isLoading)
-    return (
-      <div className="space-y-4">
-        <SkeletonCard />
-      </div>
-    );
+  async function open(file?: StoredFile) {
+    if (!file) return;
+    const ok = await openStoredFile(supabase, STORAGE_BUCKETS.proofOfWork, file);
+    if (!ok) toast({ title: "Couldn't open the plan", variant: "error" });
+  }
 
-  if (!data || data.length === 0)
+  if (isLoading) return <SkeletonCard />;
+
+  const masters = data?.masters ?? [];
+  const thirties = data?.thirties ?? [];
+
+  // Group everything by employee.
+  const byEmployee = new Map<
+    string,
+    { profile: JoinedProfile | null; master?: PlanRow; thirties: ThirtyRow[] }
+  >();
+  masters.forEach((m) => {
+    const e = byEmployee.get(m.profile_id) ?? {
+      profile: one(m.profile),
+      thirties: [],
+    };
+    e.master = m;
+    e.profile = e.profile ?? one(m.profile);
+    byEmployee.set(m.profile_id, e);
+  });
+  thirties.forEach((t) => {
+    const e = byEmployee.get(t.profile_id) ?? {
+      profile: one(t.profile),
+      thirties: [],
+    };
+    e.thirties.push(t);
+    e.profile = e.profile ?? one(t.profile);
+    byEmployee.set(t.profile_id, e);
+  });
+
+  if (byEmployee.size === 0)
     return (
       <EmptyState
         title="No plans yet"
-        message="Employees' 90-day plans will appear here."
+        message="Employees' 90-day and 30-day plans will appear here."
       />
     );
 
+  const PlanLine = ({
+    label,
+    file,
+    when,
+  }: {
+    label: string;
+    file?: StoredFile;
+    when?: string;
+  }) => (
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-gray-100 bg-gray-50/60 px-3 py-2.5">
+      <div className="min-w-0">
+        <p className="text-sm font-semibold text-dark-base">{label}</p>
+        <p className="truncate text-xs text-gray-400">
+          {file ? file.filename : "Not uploaded yet"}
+          {when ? ` · ${format(new Date(when), "dd MMM yyyy")}` : ""}
+        </p>
+      </div>
+      {file ? (
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => open(file)}
+          leftIcon={<Paperclip className="h-4 w-4" />}
+        >
+          View
+          <Download className="ml-1 h-3.5 w-3.5" />
+        </Button>
+      ) : (
+        <span className="shrink-0 text-xs text-gray-300">—</span>
+      )}
+    </div>
+  );
+
   return (
     <div className="space-y-4">
-      {data.map((plan) => {
-        const p = one(plan.profile);
-        return (
-          <div
-            key={plan.id}
-            className="rounded-2xl border border-gray-100 bg-white p-5 shadow-card"
-          >
-            <div className="mb-3 flex items-center gap-2.5">
-              <Avatar name={p?.full_name} size="sm" />
-              <div>
-                <p className="text-sm font-semibold text-dark-base">
-                  {p?.full_name ?? "—"}
-                </p>
-                <p className="text-xs text-gray-400">
-                  {p?.employee_id} ·{" "}
-                  {format(new Date(plan.submitted_at), "dd MMM yyyy")}
-                </p>
-              </div>
+      {[...byEmployee.entries()].map(([pid, e]) => (
+        <div
+          key={pid}
+          className="rounded-2xl border border-gray-100 bg-white p-5 shadow-card"
+        >
+          <div className="mb-3 flex items-center gap-2.5">
+            <Avatar name={e.profile?.full_name} src={e.profile?.avatar_url} size="sm" />
+            <div>
+              <p className="text-sm font-semibold text-dark-base">
+                {e.profile?.full_name ?? "—"}
+              </p>
+              <p className="text-xs text-gray-400">{e.profile?.employee_id}</p>
             </div>
-            <ul className="space-y-2">
-              {(plan.plan_content?.milestones ?? []).map((m, i) => (
+          </div>
+
+          <div className="space-y-2">
+            <PlanLine
+              label="90-Day Master Plan"
+              file={e.master?.plan_content?.file}
+              when={e.master?.submitted_at}
+            />
+            {[1, 2, 3].map((n) => {
+              const t = e.thirties.find((x) => x.plan_number === n);
+              return (
+                <PlanLine
+                  key={n}
+                  label={`30-Day Plan ${n}`}
+                  file={t?.content?.file}
+                  when={t?.created_at}
+                />
+              );
+            })}
+          </div>
+
+          {/* Legacy plans that stored milestones instead of a file */}
+          {(e.master?.plan_content?.milestones ?? []).length > 0 && (
+            <ul className="mt-3 space-y-2 border-t border-gray-50 pt-3">
+              {(e.master?.plan_content?.milestones ?? []).map((m, i) => (
                 <li key={i} className="flex gap-3 text-sm">
                   <span className="shrink-0 font-semibold text-electric-violet">
                     {m.week || `#${i + 1}`}
@@ -374,9 +476,9 @@ function Plans({ supabase }: { supabase: SupabaseClient }) {
                 </li>
               ))}
             </ul>
-          </div>
-        );
-      })}
+          )}
+        </div>
+      ))}
     </div>
   );
 }
