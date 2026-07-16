@@ -2,13 +2,13 @@
 -- Fix: indoor offices have weak GPS (±100 m+ is normal even for someone sitting
 -- at their desk). The strict ±100 m hard-block in 0021 was rejecting employees
 -- who are genuinely present. This makes the accuracy limit CONFIGURABLE per
--- office (default a lenient 200 m) and flags coarse readings for admin review
+-- office (default 150 m) and flags coarse readings for admin review
 -- instead of blocking. Geofence (distance <= radius) + mock + WiFi/IP + risk
 -- flags remain the real defences.
 -- ============================================================================
 
 alter table public.office_locations
-  add column if not exists max_accuracy_meters int not null default 200;
+  add column if not exists max_accuracy_meters int not null default 150;
 
 create or replace function public.record_check_in(
   p_lat        double precision,
@@ -66,7 +66,7 @@ begin
 
   -- HARD BLOCK: only truly useless (coarse network) fixes, using the office's
   -- configurable limit (default 200 m). Legit indoor GPS is allowed + flagged.
-  if p_accuracy is null or p_accuracy > coalesce(v_office.max_accuracy_meters, 200) then
+  if p_accuracy is null or p_accuracy > coalesce(v_office.max_accuracy_meters, 150) then
     raise exception 'Location too coarse (±% m). Turn ON Precise Location, go near a window and retry.',
       coalesce(round(p_accuracy)::text, '?');
   end if;
