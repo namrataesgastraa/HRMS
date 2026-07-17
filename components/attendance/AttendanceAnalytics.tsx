@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { startOfWeek, addDays, format as formatDate } from "date-fns";
 import { BarChart3, Clock } from "lucide-react";
 import { createClient } from "@/lib/supabaseClient";
 import { monthOptions, yearOptions, monthRange, MONTHS } from "@/lib/dates";
@@ -100,18 +101,30 @@ export function AttendanceAnalytics({
       wfh: 0,
       absent: 0,
     };
-    // Weekly working hours (week of month = ceil(day / 7)), up to 5 buckets.
-    const weeks = [0, 0, 0, 0, 0];
+    // Weekly working hours — real calendar weeks, Monday through Saturday
+    // (bucketed by the Monday that starts each check-in's week).
+    const weekMap = new Map<string, number>();
     let totalHours = 0;
     for (const r of rows) {
       counts[r.status] = (counts[r.status] ?? 0) + 1;
       const h = hoursBetween(r.check_in_time, r.check_out_time);
       if (h > 0 && r.check_in_time) {
-        const wk = Math.min(4, Math.ceil(new Date(r.check_in_time).getDate() / 7) - 1);
-        weeks[wk] += h;
+        const monday = startOfWeek(new Date(r.check_in_time), { weekStartsOn: 1 });
+        const key = formatDate(monday, "yyyy-MM-dd");
+        weekMap.set(key, (weekMap.get(key) ?? 0) + h);
         totalHours += h;
       }
     }
+    const weeks = [...weekMap.entries()]
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([key, hours]) => {
+        const monday = new Date(`${key}T00:00:00`);
+        const saturday = addDays(monday, 5);
+        return {
+          label: `${formatDate(monday, "dd MMM")}–${formatDate(saturday, "dd MMM")}`,
+          hours,
+        };
+      });
     return { counts, weeks, totalHours, total: rows.length };
   }, [data]);
 
@@ -119,7 +132,7 @@ export function AttendanceAnalytics({
     .map((k) => ({ key: k, ...STATUS_META[k], count: stats.counts[k] ?? 0 }))
     .filter((e) => e.count > 0);
   const maxStatus = Math.max(1, ...statusEntries.map((e) => e.count));
-  const maxWeek = Math.max(1, ...stats.weeks);
+  const maxWeek = Math.max(1, ...stats.weeks.map((w) => w.hours));
 
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-card">
@@ -212,18 +225,25 @@ export function AttendanceAnalytics({
                 {fmtHM(stats.totalHours)} total
               </span>
             </div>
-            <BarChart
-              data={stats.weeks.map((h, i) => ({
-                label: `W${i + 1}`,
-                value: Math.round(h * 100) / 100,
-              }))}
-              max={maxWeek}
-              showValues
-              valueFormat={fmtHM}
-            />
+            {stats.weeks.length === 0 ? (
+              <p className="py-6 text-center text-sm text-gray-400">
+                No completed (checked-out) days yet this period.
+              </p>
+            ) : (
+              <BarChart
+                data={stats.weeks.map((w) => ({
+                  label: w.label,
+                  value: Math.round(w.hours * 100) / 100,
+                }))}
+                max={maxWeek}
+                showValues
+                valueFormat={fmtHM}
+              />
+            )}
             <p className="mt-3 text-xs text-gray-400">
-              Hours = check-out − check-in. Standard day ends{" "}
-              {CHECKOUT_WINDOW.startHour - 12}–{CHECKOUT_WINDOW.endHour - 12} PM.
+              Hours = check-out − check-in, totalled per work week (Mon–Sat).
+              Standard check-out is {CHECKOUT_WINDOW.startHour - 12}–
+              {CHECKOUT_WINDOW.endHour - 12} PM.
             </p>
           </div>
         </div>

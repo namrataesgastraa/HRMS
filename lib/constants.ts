@@ -19,11 +19,11 @@ export const DEFAULT_OFFICE_RADIUS_METERS = 75;
 /** Hours after check-in before "Submit Proof of Work" unlocks (CLAUDE.md §4.4). */
 export const PROOF_OF_WORK_UNLOCK_HOURS = 8;
 
-/** Sensible office-hours window for check-in (guards stale GPS caches, §7.6). */
-export const CHECK_IN_WINDOW = { startHour: 6, endHour: 22 } as const;
-
-/** Check-ins at/after this local hour are marked "late" (12 PM / noon). */
-export const LATE_THRESHOLD_HOUR = 12;
+/**
+ * No check-in time restriction and no "late" status — employees can check in
+ * any time and it's simply recorded as present. (Formerly CHECK_IN_WINDOW /
+ * LATE_THRESHOLD_HOUR gated this; removed per policy change.)
+ */
 
 /** Standard check-out window (7 PM–8 PM). Check-out before this is "early". */
 export const CHECKOUT_WINDOW = { startHour: 19, endHour: 20 } as const;

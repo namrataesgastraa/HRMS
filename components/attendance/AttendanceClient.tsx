@@ -21,8 +21,6 @@ import {
   type GeoPosition,
 } from "@/lib/geolocation";
 import {
-  LATE_THRESHOLD_HOUR,
-  CHECK_IN_WINDOW,
   CHECKOUT_WINDOW,
   CHECKIN_CHAT_MESSAGE,
   CHECKOUT_CHAT_MESSAGE,
@@ -243,20 +241,13 @@ export function AttendanceClient({ uid }: Props) {
     [position, offices],
   );
 
-  const now = new Date();
-  const withinTimeWindow =
-    now.getHours() >= CHECK_IN_WINDOW.startHour &&
-    now.getHours() < CHECK_IN_WINDOW.endHour;
-
   const today = todayQuery.data ?? null;
   const alreadyCheckedIn = !!today;
   const alreadyCheckedOut = !!today?.check_out_time;
 
-  const canCheckIn =
-    !!nearest?.within &&
-    !position?.isMock &&
-    withinTimeWindow &&
-    !alreadyCheckedIn;
+  // No time-of-day restriction — employees can check in any time; only the
+  // geofence (and mock-location) gate whether the button is enabled.
+  const canCheckIn = !!nearest?.within && !position?.isMock && !alreadyCheckedIn;
 
   // Post an automatic message to the GLOBAL chat. Best-effort — never blocks or
   // fails attendance (e.g. if the user's chat is disabled, the insert is a no-op).
@@ -274,9 +265,9 @@ export function AttendanceClient({ uid }: Props) {
     if (!nearest || !position) return;
     setSubmitting(true);
     try {
-      const isLate = new Date().getHours() >= LATE_THRESHOLD_HOUR;
       // The SERVER re-computes the distance from the office and rejects anything
-      // outside the geofence — the client's own math is never trusted.
+      // outside the geofence — the client's own math is never trusted. Check-in
+      // has no time-of-day restriction; the timestamp is simply recorded.
       await postAttendance({
         action: "check-in",
         latitude: position.latitude,
@@ -290,10 +281,10 @@ export function AttendanceClient({ uid }: Props) {
       void postChat(CHECKIN_CHAT_MESSAGE);
       notifyEvent({
         kind: "attendance",
-        message: `Checked in at ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}${isLate ? " (late)" : ""} · ${Math.round(nearest.distanceMeters)} m from office.`,
+        message: `Checked in at ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · ${Math.round(nearest.distanceMeters)} m from office.`,
       });
       toast({
-        title: isLate ? "Checked in (late)" : "You're checked in!",
+        title: "You're checked in!",
         description: `Marked present · ${Math.round(nearest.distanceMeters)} m from office.`,
         variant: "success",
       });
@@ -499,14 +490,6 @@ export function AttendanceClient({ uid }: Props) {
                 Mock location detected — check-in blocked.
               </p>
             )}
-            {!withinTimeWindow && (
-              <p className="flex items-center gap-1.5 text-xs font-medium text-amber-600">
-                <Clock className="h-3.5 w-3.5" />
-                Outside check-in hours ({CHECK_IN_WINDOW.startHour}:00–
-                {CHECK_IN_WINDOW.endHour}:00).
-              </p>
-            )}
-
             {/* Action */}
             <div className="pt-1">
               {!alreadyCheckedIn ? (
@@ -521,10 +504,6 @@ export function AttendanceClient({ uid }: Props) {
                   >
                     {nearest.within ? "Mark present" : "Move closer to check in"}
                   </Button>
-                  <p className="mt-2 flex items-center justify-center gap-1.5 text-center text-xs text-gray-400">
-                    <Clock className="h-3.5 w-3.5" />
-                    Check in before {fmtHour(LATE_THRESHOLD_HOUR)} to be marked present.
-                  </p>
                 </>
               ) : !alreadyCheckedOut ? (
                 <>
